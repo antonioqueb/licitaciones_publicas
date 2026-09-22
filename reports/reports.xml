@@ -1,0 +1,118 @@
+<odoo>
+  <record id="paperformat_licitaciones" model="report.paperformat">
+    <field name="name">Licitaciones A4</field><field name="format">A4</field>
+    <field name="margin_top">40</field><field name="margin_bottom">25</field>
+    <field name="margin_left">12</field><field name="margin_right">12</field>
+    <field name="header_spacing">30</field><field name="dpi">90</field>
+  </record>
+  <record id="report_carta_apoyo" model="ir.actions.report">
+    <field name="name">Carta de apoyo</field><field name="model">licitacion.carta.apoyo</field>
+    <field name="report_type">qweb-pdf</field><field name="report_name">licitaciones_publicas.carta_apoyo</field>
+    <field name="binding_model_id" ref="model_licitacion_carta_apoyo"/>
+    <field name="paperformat_id" ref="paperformat_licitaciones"/><field name="print_report_name">object.folio</field>
+  </record>
+  <record id="report_expediente" model="ir.actions.report">
+    <field name="name">Expediente completo</field><field name="model">licitacion.expediente</field>
+    <field name="report_type">qweb-pdf</field><field name="report_name">licitaciones_publicas.expediente</field>
+    <field name="binding_model_id" ref="model_licitacion_expediente"/>
+    <field name="paperformat_id" ref="paperformat_licitaciones"/><field name="print_report_name">object.folio</field>
+  </record>
+  <record id="report_preguntas_junta" model="ir.actions.report">
+    <field name="name">Preguntas para junta de aclaraciones</field><field name="model">licitacion.expediente</field>
+    <field name="report_type">qweb-pdf</field><field name="report_name">licitaciones_publicas.preguntas_junta</field>
+    <field name="binding_model_id" ref="model_licitacion_expediente"/>
+    <field name="paperformat_id" ref="paperformat_licitaciones"/>
+  </record>
+  <record id="action_report_costeo_xlsx" model="ir.actions.report">
+    <field name="name">Costeo XLSX</field><field name="model">licitacion.expediente</field>
+    <field name="report_type">xlsx</field><field name="report_name">licitaciones_publicas.costeo_xlsx</field>
+    <field name="binding_model_id" ref="model_licitacion_expediente"/>
+  </record>
+  <record id="action_report_partidas_xlsx" model="ir.actions.report">
+    <field name="name">Partidas XLSX</field><field name="model">licitacion.procedimiento</field>
+    <field name="report_type">xlsx</field><field name="report_name">licitaciones_publicas.partidas_xlsx</field>
+    <field name="binding_model_id" ref="model_licitacion_procedimiento"/>
+  </record>
+  <record id="action_report_checklist_xlsx" model="ir.actions.report">
+    <field name="name">Checklist documental XLSX</field><field name="model">licitacion.expediente</field>
+    <field name="report_type">xlsx</field><field name="report_name">licitaciones_publicas.checklist_xlsx</field>
+    <field name="binding_model_id" ref="model_licitacion_expediente"/>
+  </record>
+  <template id="procedimiento_info">
+    <p><strong>Procedimiento: </strong><span t-field="proc.identificador"/><br/>
+       <span t-field="proc.nombre_publicado"/><br/>
+       <strong>Unidad compradora: </strong><span t-field="proc.unidad_compradora_id.name"/></p>
+    <table class="table table-sm"><tbody>
+      <tr><td>Junta de aclaraciones</td><td><span t-field="proc.fecha_junta_aclaraciones" t-options="{'format':'dd/MM/yyyy HH:mm'}"/></td></tr>
+      <tr><td>Límite de preguntas</td><td><span t-field="proc.fecha_limite_preguntas" t-options="{'format':'dd/MM/yyyy HH:mm'}"/></td></tr>
+      <tr><td>Entrega de muestras</td><td><span t-field="proc.fecha_entrega_muestras" t-options="{'format':'dd/MM/yyyy HH:mm'}"/></td></tr>
+      <tr><td>Apertura</td><td><span t-field="proc.fecha_apertura" t-options="{'format':'dd/MM/yyyy HH:mm'}"/></td></tr>
+    </tbody></table>
+  </template>
+  <template id="tabla_partidas">
+    <table class="table table-sm"><thead style="display:table-header-group"><tr>
+      <th>Núm.</th><th>Clave CUCoP+</th><th>Descripción</th><th>Unidad</th><th>Cantidad</th>
+    </tr></thead><tbody><tr t-foreach="partidas" t-as="partida" style="page-break-inside:avoid">
+      <td><span t-field="partida.numero"/></td><td><span t-field="partida.clave_cucop"/></td>
+      <td style="white-space:pre-wrap"><span t-field="partida.descripcion_detallada"/></td>
+      <td><span t-field="partida.unidad_medida"/></td><td><span t-field="partida.cantidad"/></td>
+    </tr></tbody></table>
+  </template>
+  <template id="firma">
+    <div style="margin-top:24px;page-break-inside:avoid">
+      <img t-if="doc.company_id.firma_representante_legal" t-att-src="image_data_uri(doc.company_id.firma_representante_legal)" style="max-height:80px;max-width:220px"/>
+      <p><span t-field="doc.company_id.representante_legal"/><br/><span t-field="doc.company_id.name"/></p>
+    </div>
+  </template>
+  <template id="carta_apoyo">
+    <t t-call="web.html_container"><t t-foreach="docs" t-as="doc">
+      <t t-set="o" t-value="doc"/><t t-set="company" t-value="doc.company_id"/>
+      <t t-call="web.external_layout_boxed"><div class="page">
+        <h2>Solicitud de apoyo a proveedor</h2><p><strong>Folio: </strong><span t-field="doc.folio"/></p>
+        <p><strong>A: </strong><span t-field="doc.partner_id.name"/></p>
+        <t t-set="proc" t-value="doc.expediente_id.procedimiento_id"/><t t-call="licitaciones_publicas.procedimiento_info"/>
+        <p>Solicitamos su apoyo con cotización y documentación técnica de las partidas indicadas para integrar nuestra propuesta. Agradecemos responder por correo con disponibilidad, condiciones y documentos aplicables.</p>
+        <t t-set="partidas" t-value="doc.partida_ids"/><t t-call="licitaciones_publicas.tabla_partidas"/>
+        <t t-call="licitaciones_publicas.firma"/>
+      </div></t>
+    </t></t>
+  </template>
+  <template id="preguntas_contenido">
+    <t t-set="preguntas" t-value="doc.pregunta_ids.filtered(lambda p: p.state == 'lista')"/>
+    <p t-if="not preguntas">No hay preguntas listas para enviar.</p>
+    <table class="table table-sm" t-if="preguntas"><thead><tr><th>Núm.</th><th>Partida</th><th>Pregunta</th></tr></thead>
+      <tbody><tr t-foreach="preguntas" t-as="pregunta" style="page-break-inside:avoid">
+        <td><t t-out="pregunta_index + 1"/></td><td><span t-field="pregunta.partida_id.clave_cucop"/></td>
+        <td style="white-space:pre-wrap"><span t-field="pregunta.texto"/></td>
+      </tr></tbody>
+    </table>
+  </template>
+  <template id="preguntas_junta">
+    <t t-call="web.html_container"><t t-foreach="docs" t-as="doc"><t t-set="o" t-value="doc"/><t t-set="company" t-value="doc.company_id"/>
+      <t t-call="web.external_layout_boxed"><div class="page"><h2>Preguntas para junta de aclaraciones</h2>
+        <p><span t-field="doc.folio"/> · <span t-field="doc.company_id.name"/></p>
+        <t t-set="proc" t-value="doc.procedimiento_id"/><t t-call="licitaciones_publicas.procedimiento_info"/>
+        <t t-call="licitaciones_publicas.preguntas_contenido"/><t t-call="licitaciones_publicas.firma"/>
+      </div></t>
+    </t></t>
+  </template>
+  <template id="expediente">
+    <t t-call="web.html_container"><t t-foreach="docs" t-as="doc"><t t-set="o" t-value="doc"/><t t-set="company" t-value="doc.company_id"/>
+      <t t-call="web.external_layout_boxed"><div class="page"><h1>Expediente de participación</h1>
+        <h2><span t-field="doc.folio"/></h2><p><span t-field="doc.company_id.name"/> · <span t-field="doc.state"/></p>
+        <t t-set="proc" t-value="doc.procedimiento_id"/><t t-call="licitaciones_publicas.procedimiento_info"/>
+        <h3>Partidas asignadas</h3><t t-set="partidas" t-value="doc.partida_ids"/><t t-call="licitaciones_publicas.tabla_partidas"/>
+        <p t-foreach="doc.partida_ids" t-as="partida"><span t-field="partida.clave_cucop"/>:
+          <t t-if="partida.empresa_principal_id == doc.company_id">Principal</t><t t-else="">Secundaria</t>
+        </p>
+        <h3>Preguntas listas</h3><t t-call="licitaciones_publicas.preguntas_contenido"/>
+        <h3>Costeo</h3><table class="table table-sm"><thead><tr><th>Partida</th><th>Cantidad</th><th>Costo unitario</th><th>Precio unitario</th><th>Costo total</th><th>Precio total</th></tr></thead><tbody>
+          <tr t-foreach="doc.costeo_linea_ids" t-as="line"><td><span t-field="line.partida_id.clave_cucop"/></td><td><span t-field="line.cantidad"/></td><td><span t-field="line.costo_unitario"/></td><td><span t-field="line.precio_unitario"/></td><td><span t-field="line.total_costo"/></td><td><span t-field="line.total_precio"/></td></tr>
+        </tbody></table><p>Costo total: <span t-field="doc.total_costo"/> · Precio total: <span t-field="doc.total_precio"/> · Margen: <span t-field="doc.margen_pct"/>%</p>
+        <h3>Checklist documental</h3><table class="table table-sm"><thead><tr><th>Origen / proveedor</th><th>Tipo</th><th>Estado</th><th>Vencimiento</th></tr></thead><tbody>
+          <tr t-foreach="doc.documento_ids" t-as="documento"><td><span t-field="documento.origen"/> <span t-field="documento.partner_id.name"/></td><td><span t-field="documento.tipo"/></td><td><span t-field="documento.state"/></td><td><span t-field="documento.fecha_vencimiento" t-options="{'format':'dd/MM/yyyy'}"/></td></tr>
+        </tbody></table><p t-if="doc.bloqueantes_pendientes"><strong>Bloqueantes: </strong><span t-field="doc.bloqueantes_pendientes"/></p>
+      </div></t>
+    </t></t>
+  </template>
+</odoo>

@@ -1,0 +1,4 @@
+<odoo noupdate="1">
+<record id="seq_expediente_folio" model="ir.sequence"><field name="name">Folio de expediente</field><field name="code">licitacion.expediente</field><field name="prefix">EXP-%(year)s-</field><field name="padding">4</field><field name="company_id" eval="False"/></record>
+<record id="seq_carta_apoyo" model="ir.sequence"><field name="name">Folio de carta</field><field name="code">licitacion.carta.apoyo</field><field name="prefix">CARTA-%(year)s-</field><field name="padding">5</field><field name="company_id" eval="False"/></record>
+</odoo>

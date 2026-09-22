@@ -1,0 +1,5 @@
+FROM odoo:19.0
+USER root
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+    'openpyxl>=3.1,<4' 'xlsxwriter>=3.2,<4' 'coverage>=7.6,<8'
+USER odoo

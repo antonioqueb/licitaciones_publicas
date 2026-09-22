@@ -1,0 +1,2 @@
+<odoo noupdate="1"><record id="uc_demo_032" model="licitacion.unidad.compradora"><field name="code">050GYR032</field><field name="name">Unidad compradora 032 — demostración</field><field name="dependencia">IMSS (referencia de prueba)</field></record>
+</odoo>

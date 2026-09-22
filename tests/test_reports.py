@@ -1,0 +1,35 @@
+import io
+
+import openpyxl
+from odoo.tests import tagged
+
+from .common import LicitacionCase
+
+
+@tagged('post_install', '-at_install')
+class TestReports(LicitacionCase):
+    def test_all_three_pdf_reports(self):
+        p, line, exps = self.full_expedientes()
+        exp = exps[0]
+        self.env['licitacion.pregunta'].create({'expediente_id': exp.id, 'texto': '¿Se acepta ficha técnica equivalente?', 'state': 'lista'})
+        for xmlid, docs in [('report_carta_apoyo', exp.carta_apoyo_ids), ('report_expediente', exp), ('report_preguntas_junta', exp)]:
+            with self.subTest(report=xmlid):
+                report = self.env.ref('licitaciones_publicas.' + xmlid)
+                content, fmt = report._render_qweb_pdf(report.report_name, res_ids=docs.ids)
+                self.assertEqual(fmt, 'pdf')
+                self.assertTrue(content.startswith(b'%PDF-'))
+                self.assertGreater(len(content), 5000)
+
+    def test_all_three_xlsx_reports(self):
+        p, line, exps = self.full_expedientes()
+        exp = exps.filtered(lambda e: e.company_id == line.empresa_principal_id)
+        self.env['licitacion.costeo.linea'].create({'expediente_id': exp.id, 'partida_id': line.id, 'costo_unitario': 80, 'precio_unitario': 100})
+        self.env['licitacion.documento'].create({'expediente_id': exp.id, 'tipo': 'propio_otro'})
+        for xmlid, docs, name in [('action_report_costeo_xlsx', exp, 'Costeo'), ('action_report_partidas_xlsx', p, 'Partidas'), ('action_report_checklist_xlsx', exp, 'Checklist')]:
+            with self.subTest(report=xmlid):
+                report = self.env.ref('licitaciones_publicas.' + xmlid)
+                content, fmt = report.with_context(active_model=docs._name, active_ids=docs.ids)._render_xlsx(report.report_name, docs.ids, data={})
+                self.assertEqual(fmt, 'xlsx')
+                workbook = openpyxl.load_workbook(io.BytesIO(content))
+                self.assertIn(name, workbook.sheetnames)
+                self.assertGreater(workbook[name].max_row, 1)

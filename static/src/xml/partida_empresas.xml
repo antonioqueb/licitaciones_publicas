@@ -1,0 +1,13 @@
+<templates xml:space="preserve">
+    <t t-name="licitaciones_publicas.PartidaEmpresasChips">
+        <div class="d-flex flex-wrap gap-1 lp_company_chips">
+            <t t-foreach="companies" t-as="company" t-key="company.key">
+                <span t-att-class="company.principal ? 'badge lp_principal' : 'badge lp_secundaria'"
+                      t-att-title="company.principal ? 'Principal: primera empresa asignada' : 'Secundaria'">
+                    <t t-esc="company.name"/> · <t t-if="company.principal">Principal</t><t t-else="">Secundaria</t>
+                </span>
+            </t>
+            <span t-if="!companies.length" class="text-muted">Sin empresa</span>
+        </div>
+    </t>
+</templates>

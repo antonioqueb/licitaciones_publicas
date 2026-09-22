@@ -1,0 +1,14 @@
+[run]
+branch = True
+omit =
+    */tests/*
+    */scripts/*
+    */.ci/*
+    */__manifest__.py
+
+[report]
+show_missing = True
+fail_under = 80
+
+[xml]
+output = /tmp/coverage.xml

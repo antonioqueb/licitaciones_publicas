@@ -1,0 +1,18 @@
+<odoo noupdate="1">
+  <record id="mail_template_carta_apoyo" model="mail.template">
+    <field name="name">Licitaciones: solicitud de apoyo a proveedor</field>
+    <field name="model_id" ref="model_licitacion_carta_apoyo"/>
+    <field name="subject">Solicitud de apoyo — {{ object.folio }} — {{ object.expediente_id.procedimiento_id.identificador }}</field>
+    <field name="email_from">{{ object.company_id.partner_id.email_formatted or user.email_formatted }}</field>
+    <field name="partner_to">{{ object.partner_id.id }}</field>
+    <field name="lang">es_MX</field><field name="auto_delete" eval="False"/>
+    <field name="report_template_ids" eval="[(4, ref('report_carta_apoyo'))]"/>
+    <field name="body_html" type="html"><div>
+      <p>Estimado equipo de <t t-out="object.partner_id.name"/>:</p>
+      <p>Adjuntamos la solicitud <strong t-out="object.folio"/> de <t t-out="object.company_id.name"/>
+         para el procedimiento <t t-out="object.expediente_id.procedimiento_id.identificador"/>.</p>
+      <p>Agradecemos responder a este correo con su cotización, disponibilidad y documentos aplicables a las partidas indicadas.</p>
+      <p>Atentamente,<br/><t t-out="object.company_id.name"/></p>
+    </div></field>
+  </record>
+</odoo>

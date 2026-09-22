@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+tests/fixtures/*.xlsx
+!tests/fixtures/README.md
+.env
+build/
+test-results/
+.ci/
