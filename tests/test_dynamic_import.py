@@ -1,8 +1,9 @@
-from psycopg2 import IntegrityError
+from psycopg2.errors import UniqueViolation
 
 from odoo import Command, fields
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .common import LicitacionCase, excel, HEADERS
 from .test_import import LIST_HEADERS
@@ -68,8 +69,10 @@ class TestDynamicImport(LicitacionCase):
                        {'palabras_clave_deteccion': '{mal json'}, {'mapeo_columnas': '{"state": ["Estado"]}'}):
             with self.subTest(values=values), self.assertRaises(ValidationError), self.env.cr.savepoint():
                 config.write(values)
-        with self.assertRaises((ValidationError, IntegrityError)), self.env.cr.savepoint():
+        # El helper de Odoo espera una clase y revierte su propio savepoint.
+        with mute_logger('odoo.sql_db'), self.assertRaises(UniqueViolation):
             config.copy({'codigo': config.codigo})
+        self.assertEqual(config.search([('codigo', '=', config.codigo)]), config)
 
     def test_unknown_prefix_preserved_as_load_incident_without_procedure(self):
         identifier = 'ZZ-50-GYR-050GYR032-N-990-2026'
