@@ -15,7 +15,9 @@ class TestReports(LicitacionCase):
         for xmlid, docs in [('report_carta_apoyo', exp.carta_apoyo_ids), ('report_expediente', exp), ('report_preguntas_junta', exp)]:
             with self.subTest(report=xmlid):
                 report = self.env.ref('licitaciones_publicas.' + xmlid)
-                content, fmt = report._render_qweb_pdf(report.report_name, res_ids=docs.ids)
+                # Odoo devuelve HTML en modo test salvo que se fuerce el PDF real.
+                content, fmt = report.with_context(force_report_rendering=True)._render_qweb_pdf(
+                    report.report_name, res_ids=docs.ids)
                 self.assertEqual(fmt, 'pdf')
                 self.assertTrue(content.startswith(b'%PDF-'))
                 self.assertGreater(len(content), 5000)

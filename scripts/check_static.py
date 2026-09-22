@@ -5,6 +5,8 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
+# Selection de ir.actions.act_window.target en Odoo 19.
+WINDOW_TARGETS = {'current', 'new', 'fullscreen', 'main'}
 
 
 def check_expression(expression, where, errors):
@@ -29,6 +31,16 @@ def check_xml_expressions(doc, where, errors):
                 check_expression(value, f'{where} <{node.tag}> ({key})', errors)
         if node.tag == 'field' and node.get('name') in ('domain', 'context') and node.text and node.text.strip():
             check_expression(node.text, f'{where} <field name="{node.get("name")}">', errors)
+
+
+def check_window_actions(doc, where, errors):
+    for record in doc.findall('.//record[@model="ir.actions.act_window"]'):
+        target = record.find('field[@name="target"]')
+        if target is not None and 'eval' not in target.attrib:
+            value = (target.text or '').strip()
+            if value not in WINDOW_TARGETS:
+                errors.append(f'{where} {record.get("id", "ir.actions.act_window")}: '
+                              f'target no admitido en Odoo 19: {value!r}')
 
 
 def main():
@@ -103,6 +115,7 @@ def main():
     for path in ROOT.rglob('*.xml'):
         doc = ET.parse(path)
         check_xml_expressions(doc, str(path.relative_to(ROOT)), errors)
+        check_window_actions(doc, str(path.relative_to(ROOT)), errors)
         for rec in doc.findall('.//record'):
             xmlid = rec.get('id')
             if xmlid in xmlids:
@@ -119,7 +132,7 @@ def main():
             errors.append('ACL pública inesperada: ' + row['id'])
     if errors:
         raise SystemExit('\n'.join(errors))
-    print(f'OK: {len(list(ROOT.rglob("*.py")))} Python, {len(list(ROOT.rglob("*.xml")))} XML; manifest, campos, botones, ACL y expresiones coherentes.')
+    print(f'OK: {len(list(ROOT.rglob("*.py")))} Python, {len(list(ROOT.rglob("*.xml")))} XML; manifest, campos, botones, ACL, expresiones y acciones coherentes.')
 
 
 if __name__ == '__main__':

@@ -59,3 +59,29 @@ de sustituir `odoo.__file__` por búsqueda en `odoo.addons.__path__`, compatible
 el paquete namespace de Odoo 19. Esta corrección del Dockerfile queda incluida en
 el repositorio. La ejecución fallida de la instalación se detuvo antes de actualizar
 las bases de negocio de QA y producción.
+
+## Segundo ensayo remoto y corrección · 22/09/2026 UTC
+
+Con el commit `69d931d` publicado, la instalación avanzó hasta
+`views/settings_views.xml:4`. Odoo rechazó `ir.actions.act_window.target = inline`.
+Se reemplazó por `current` tanto en el XML como en su generador. El checker ahora
+comprueba los destinos de acciones de ventana y tiene tres pruebas adicionales:
+rechazo de `inline`, aceptación de los destinos vigentes y separación de acciones
+URL/campos de vistas. La selección se contrastó con el
+[modelo oficial de acciones de Odoo 19](https://github.com/odoo/odoo/blob/19.0/odoo/addons/base/models/ir_actions.py).
+También se asignaron roles accesibles a los tres avisos que advertía el log.
+
+Durante la revisión de las pruebas se corrigió la llamada de PDF para pasar
+`force_report_rendering=True`. El
+[motor de reportes de Odoo 19](https://github.com/odoo/odoo/blob/19.0/odoo/addons/base/models/ir_actions_report.py)
+devuelve HTML durante los tests si no se fuerza el PDF. Se conservan las
+comprobaciones de formato PDF, cabecera `%PDF-` y tamaño mayor a 5 KB para los tres
+reportes; este ajuste aún debe ejecutarse en el servidor.
+
+Resultado local: **46 pruebas independientes correctas**, checker de 33 Python y
+18 XML aprobado y `git diff --check` sin errores. La evidencia remota del fallo
+está en `evidence/licitaciones-instalar-qa.I49yXUh5/review/odoo-tests.log` del
+workspace de despliegue. El ensayo se detuvo en la base desechable
+`licitaciones_test`, antes de las pruebas ORM/PDF y antes de actualizar QA. No se
+ejecutó una actualización de producción. Instalación y pruebas completas siguen
+pendientes de una nueva ejecución con esta revisión publicada.

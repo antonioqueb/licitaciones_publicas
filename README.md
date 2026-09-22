@@ -5,11 +5,11 @@ asignación de empresas y proveedores, expedientes por empresa, agenda,
 incidencias y exportables. Nombre técnico: `licitaciones_publicas`.
 
 **Estado de entrega: desarrollo pendiente de validación en Odoo. No es una v1
-aceptada para producción.** Se ejecutaron 43 pruebas independientes del servidor,
+aceptada para producción.** Se ejecutaron 46 pruebas independientes del servidor,
 la compilación Python, la comprobación de sintaxis JavaScript y la revisión
-estructural de 18 XML. El primer ensayo de instalación Enterprise encontró un
-dominio inválido, corregido en esta revisión. Queda pendiente repetir la instalación
-y ejecutar las pruebas ORM/PDF, cobertura global ≥80%, CI remoto, demo con Excel
+estructural de 18 XML. Los ensayos de instalación Enterprise encontraron un
+dominio inválido y un destino de acción obsoleto, ambos corregidos. Queda pendiente
+repetir la instalación y ejecutar las pruebas ORM/PDF, cobertura global ≥80%, CI remoto, demo con Excel
 del cliente y capturas reales. Véase [evidencia](docs/verificacion.md).
 
 ## Instalación en desarrollo
