@@ -1,11 +1,12 @@
 {
     'name': 'Gestión de Licitaciones Públicas',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Sales/Public Procurement',
     'summary': 'Detección, criba y expedientes por empresa',
     'author': 'Alphaqueb Consulting SAS',
     'website': 'https://biotecgrupo.mx',
     'license': 'OPL-1',
+    'icon': '/licitaciones_publicas/static/description/icon.svg',
     'depends': ['base', 'mail', 'web', 'contacts', 'report_xlsx'],
     'external_dependencies': {'python': ['openpyxl', 'xlsxwriter']},
     'data': [
