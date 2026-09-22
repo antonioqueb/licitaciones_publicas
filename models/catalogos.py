@@ -38,7 +38,7 @@ class Unidad(models.Model):
 class Estatus(models.Model):
     _name = 'licitacion.estatus.portal'
     _description = 'Estatus del portal'
-    _inherit = ['licitacion.catalogo', 'mail.activity.mixin']
+    _inherit = ['licitacion.catalogo', 'mail.thread', 'mail.activity.mixin']
 
     tipo = fields.Selection([('base', 'Base'), ('auto_creado', 'Creado al importar')], default='base', required=True)
     estado = fields.Selection([('activo', 'Activo'), ('por_revisar', 'Por revisar'), ('inactivo', 'Inactivo')], default='activo', required=True)

@@ -119,3 +119,29 @@ corregidas todavía requieren repetición en el servidor. El fragmento remoto
 disponible confirma el error del asistente; no permite dar por aprobada la suite.
 La actualización de QA permanece detrás de esta prueba aislada y el instalador
 no ejecuta una actualización de producción.
+
+## Cuarto ensayo completo y notificación de estatus · 22/09/2026 UTC
+
+El release `licitaciones-20260922T053744089002Z`, con `5a85b8c`, terminó por sí
+solo. La evidencia descargada se encuentra en
+`evidence/licitaciones-instalar-qa.loVE8TjC/review/odoo-tests.log` del workspace.
+Odoo informó **0 fallos, 1 error de 35 pruebas**. La prueba con los tres Excel
+reales se omitió explícitamente por ausencia de esos archivos.
+
+Pasaron los tests de los tres PDF reales y tres XLSX, las pruebas de seguridad y
+las de flujos, incluidos los asistentes corregidos. El único error registrado
+fue `TestImport.test_listado_117_synthetic_and_unknown_status`: el catálogo
+`licitacion.estatus.portal` tenía `mail.activity.mixin` pero carecía de
+`mail.thread`. Al asignar la actividad al administrador, Odoo llamó a
+`message_notify`, que no existía en ese modelo. El flujo de actividades se
+contrastó con el [código oficial de Odoo 19](https://github.com/odoo/odoo/blob/19.0/addons/mail/models/mail_activity.py).
+
+Se añadió `mail.thread` al catálogo y el chatter a su formulario, también en el
+generador de vistas. La prueba existente ahora comprueba que la segunda carga
+confirmada no duplique la actividad y que completarla deje su nota en el historial
+del estatus. Esta prueba ampliada aún requiere ejecución en el servidor.
+
+Validación local: **46 pruebas independientes correctas**, checker de 33 Python y
+18 XML aprobado, y `git diff --check` sin errores. El ensayo fallido se detuvo
+antes de actualizar QA. Producción no se actualizó. No se considera aprobada la
+suite completa hasta repetir el ensayo con esta corrección.

@@ -106,7 +106,8 @@ def generate():
     for model, label, extras in catalogs:
         slug = model.replace('.', '_')
         c += view('view_' + slug + '_list', 'licitacion.' + model, '<list>' + fields('code name ' + extras + ' active') + '</list>')
-        c += view('view_' + slug + '_form', 'licitacion.' + model, '<form><sheet><group>' + fields('code name ' + extras + ' active') + '</group></sheet></form>')
+        chatter = '<chatter/>' if model == 'estatus.portal' else ''
+        c += view('view_' + slug + '_form', 'licitacion.' + model, '<form><sheet><group>' + fields('code name ' + extras + ' active') + '</group></sheet>' + chatter + '</form>')
         c += action('action_' + slug, label, 'licitacion.' + model)
     c += '''<record id="view_partner_licitacion" model="ir.ui.view"><field name="name">res.partner.licitacion</field><field name="model">res.partner</field><field name="inherit_id" ref="base.view_partner_form"/><field name="arch" type="xml"><xpath expr="//notebook" position="inside"><page string="Licitaciones" groups="licitaciones_publicas.group_licitaciones_user"><group><field name="es_proveedor_licitacion"/><field name="claves_cucop_ids" widget="many2many_tags"/><field name="actividad_licitacion"/></group></page></xpath></field></record>'''
     c += action('action_proveedores', 'Proveedores de licitaciones', 'res.partner', extra='<field name="domain">[(\'es_proveedor_licitacion\',\'=\',True)]</field><field name="context">{\'default_es_proveedor_licitacion\':True}</field>')

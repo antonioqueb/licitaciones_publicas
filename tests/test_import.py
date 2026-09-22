@@ -156,9 +156,18 @@ class TestImport(LicitacionCase):
         carga._confirm()
         status = self.env['licitacion.estatus.portal'].search([('code', '=', 'NUEVO_ESTATUS')])
         self.assertEqual(status.estado, 'por_revisar')
-        self.assertTrue(status.activity_ids)
+        activities = status.activity_ids
+        self.assertEqual(len(activities), 1)
+        self.assertEqual(activities.summary, 'Validar nuevo estatus del portal')
         second = load()
         self.assertEqual((second.procedimientos_cambios, second.procedimientos_sin_cambios), (0, 117))
+        second._confirm()
+        self.assertEqual(status.activity_ids, activities)
+        message_id = activities.action_feedback(feedback='Estatus nuevo revisado por el administrador.')
+        self.assertFalse(status.activity_ids)
+        message = self.env['mail.message'].browse(message_id)
+        self.assertEqual((message.model, message.res_id), (status._name, status.id))
+        self.assertIn('Estatus nuevo revisado', message.body)
 
     def test_discarded_dates_notify_and_allow_manual_criba(self):
         p = self.procedure()

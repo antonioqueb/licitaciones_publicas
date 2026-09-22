@@ -7,12 +7,12 @@ incidencias y exportables. Nombre técnico: `licitaciones_publicas`.
 **Estado de entrega: desarrollo pendiente de validación en Odoo. No es una v1
 aceptada para producción.** Se ejecutaron 46 pruebas independientes del servidor,
 la compilación Python, la comprobación de sintaxis JavaScript y la revisión
-estructural de 18 XML. El ensayo Enterprise ya alcanzó las pruebas ORM, que
-detectaron la creación prematura de un asistente incompleto; se corrigió su
-apertura. Las pruebas PDF se adaptaron a `HttpCase` para atender las peticiones
-de wkhtmltopdf durante el test. Queda pendiente repetir la instalación y completar
-las pruebas ORM/PDF, cobertura global ≥80%, CI remoto, demo con Excel
-del cliente y capturas reales. Véase [evidencia](docs/verificacion.md).
+estructural de 18 XML. El último ensayo Enterprise completó las pruebas de los
+tres PDF y tres XLSX, seguridad y flujos. Su resumen fue 35 pruebas, 0 fallos y
+1 error al notificar un estatus nuevo del portal, corregido y pendiente de repetir.
+Se omitió la prueba de Excel reales por falta de archivos. Quedan pendientes la
+suite completa sin errores, cobertura global ≥80%, CI remoto, demo con Excel del
+cliente y capturas reales. Véase [evidencia](docs/verificacion.md).
 
 ## Instalación en desarrollo
 
