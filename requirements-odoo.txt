@@ -1,0 +1,4 @@
+# Wheel publicado por OCA; instalar con --no-deps para conservar el Odoo de la imagen.
+# https://pypi.org/project/odoo-addon-report-xlsx/19.0.1.0.2.2/
+odoo-addon-report-xlsx==19.0.1.0.2.2 \
+    --hash=sha256:bb269e89d5cb5af13353c921a86e29d56ade37f63b2598fc2baf470c30d6c551

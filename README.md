@@ -48,6 +48,68 @@ No depende de `documents` porque usa `ir.attachment` según A-03. La firma
 escaneada del representante es opcional por empresa y aparece condicionalmente
 en los PDF. No equivale a una firma electrónica.
 
+## Dependencias en Docker Compose
+
+`requirements.txt` reúne `openpyxl`, `xlsxwriter` y `xlrd` (esta última también es
+dependencia declarada de `report_xlsx`). Las pruebas incluyen ese mismo archivo
+desde `requirements-test.txt`.
+
+El `Dockerfile` añade esas librerías y el addon **report_xlsx** a una imagen Odoo
+19. El addon se obtiene del [wheel publicado por OCA en PyPI](https://pypi.org/project/odoo-addon-report-xlsx/19.0.1.0.2.2/),
+fijado por versión y SHA-256 en `requirements-odoo.txt`. Se extrae con `--no-deps`
+para conservar la distribución Odoo instalada en la imagen y se copia al
+directorio nativo de addons. Los montajes de `/mnt/extra-addons` de cada instancia
+no ocultan esa dependencia. El build verifica la versión de Odoo y los imports.
+
+La imagen base predeterminada queda fijada al mismo digest de Odoo que el usuario
+confirmó en los contenedores actuales de QA y producción:
+`sha256:f99ffac95cb39a0924622ea4118481c95651d9c84187e5b30a21c2cc4419c7dd`.
+Así, la construcción no introduce una actualización implícita de Odoo.
+
+Construcción independiente desde la raíz de este repositorio:
+
+```sh
+docker compose -f compose.dependencies.yaml build odoo
+```
+
+Para el servidor Bioteczac, ejecutar allí **después de copiar/publicar estos
+archivos nuevos**, desde el clon del módulo:
+
+```sh
+cd /opt/bioteczac/qa/addons/licitaciones_publicas
+bash scripts/build_dependencies.sh both
+```
+
+También admite `qa` o `production`. El script lee `services.odoo.image` del
+`/opt/bioteczac/<instancia>/compose.json` existente y lo pasa como
+`ODOO_BASE_IMAGE`; conserva así la versión/digest de Odoo de cada instancia.
+Construye con `docker compose build odoo` las imágenes
+`bioteczac-odoo-qa-licitaciones:19.0.1.0.0` y
+`bioteczac-odoo-production-licitaciones:19.0.1.0.0`.
+
+La construcción deja listas las imágenes; no cambia el servicio activo ni instala
+módulos en la base. Para usarlas en el despliegue, la configuración persistente del
+servicio `odoo` de cada entorno debe apuntar a su nueva imagen. El runtime local
+`manager.py` genera `compose.json` y el actualizador lo utiliza con `-f` explícito:
+un archivo override aislado no se aplica automáticamente. Hay que conservar esa
+selección también al regenerar la configuración del runtime. Revisar la versión
+real del runtime remoto antes de cambiarla. La instalación de `licitaciones_publicas`
+y su dependencia `report_xlsx` se realiza después, primero en QA.
+
+Antes de actualizar producción, comprobar los montajes reales de PostgreSQL y del
+filestore, generar un respaldo consistente de base y archivos junto con la
+configuración, conservar una copia cifrada fuera del servidor y probar su
+restauración en un entorno aislado. Un checksum o `pg_restore --list` no sustituyen
+esa prueba de recuperación. No usar `sync`/`qa-refresh` para instalar dependencias,
+ni eliminar volúmenes o directorios de datos. La actualización debe conservar los
+montajes existentes. El comando documentado `bioteczac backup` pausa temporalmente
+Odoo/Nginx de producción para obtener un corte consistente y los vuelve a iniciar;
+hay que verificar su versión instalada y prever esa interrupción antes de ejecutarlo.
+
+Validación local de estos archivos: configuración Compose y sintaxis comprobables
+sin daemon. **El build no se ha completado en este entorno**: SSH está bloqueado y
+el socket local de Docker devuelve `permission denied`.
+
 ## Operación
 
 - **Agenda:** cinco tipos de fecha en una vista SQL, calendario y lista, filtros

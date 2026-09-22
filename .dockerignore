@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!requirements.txt
+!requirements-odoo.txt
+!requirements-test.txt
+!scripts/
+!scripts/Dockerfile.ci

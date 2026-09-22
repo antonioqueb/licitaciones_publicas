@@ -1,0 +1,10 @@
+# Construcción independiente o segundo archivo -f junto al Compose de la instancia.
+# Al combinar archivos, LICITACIONES_BUILD_CONTEXT debe ser la ruta absoluta del repo.
+services:
+  odoo:
+    image: ${LICITACIONES_IMAGE:-bioteczac-odoo-licitaciones:19.0.1.0.0}
+    build:
+      context: ${LICITACIONES_BUILD_CONTEXT:-.}
+      dockerfile: Dockerfile
+      args:
+        ODOO_BASE_IMAGE: ${ODOO_BASE_IMAGE:-odoo@sha256:f99ffac95cb39a0924622ea4118481c95651d9c84187e5b30a21c2cc4419c7dd}
