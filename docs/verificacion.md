@@ -39,3 +39,23 @@ oficiales; correo/cron en desarrollo; revisión visual y screenshots.
 El workflow y las pruebas se entregan como código revisable, sin atribuirles
 un resultado de ejecución que aún no existe. El README registra además las
 diferencias funcionales de UI pendientes frente al brief.
+
+## Primer ensayo remoto y corrección · 22/09/2026 UTC
+
+La instalación en una base desechable de Odoo 19 Enterprise se detuvo al validar
+la vista del asistente de criba. El dominio Python de `motivo_id` tenía una comilla
+sin cerrar dentro de una cadena válida de Python; la compilación del archivo no
+detectaba esa sintaxis interna. No llegaron a ejecutarse las pruebas ORM/PDF.
+
+Se sustituyó ese dominio por una lista literal y se amplió `check_static.py` para
+validar sintaxis de dominios/contextos en cadenas Python y de expresiones XML,
+sin evaluarlas. Se agregaron cuatro pruebas que reproducen el defecto y comprueban
+expresiones dinámicas y modificadores de vistas. Resultado local: **43 pruebas
+independientes correctas** y comprobación estática de 33 Python y 18 XML aprobada.
+La repetición del ensayo completo en Odoo sigue pendiente.
+
+La imagen con dependencias también se construyó y verificó en el servidor después
+de sustituir `odoo.__file__` por búsqueda en `odoo.addons.__path__`, compatible con
+el paquete namespace de Odoo 19. Esta corrección del Dockerfile queda incluida en
+el repositorio. La ejecución fallida de la instalación se detuvo antes de actualizar
+las bases de negocio de QA y producción.

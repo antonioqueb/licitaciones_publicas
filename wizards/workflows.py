@@ -142,7 +142,7 @@ class Criba(models.TransientModel):
         default=lambda s: s.env.context.get('active_ids', []) if s.env.context.get('active_model') == 'licitacion.procedimiento' else [])
     es_lote = fields.Boolean(string='En lote', compute='_compute_lote')
     decision = fields.Selection([('participamos', 'Participamos'), ('descartar', 'Descartar'), ('no_viable', 'No viable'), ('reabrir', 'Reabrir')], string='Decisión', required=True, default='participamos')
-    motivo_id = fields.Many2one('licitacion.motivo.descarte', string='Motivo', domain="[('aplica_a', 'in', ['procedimiento', 'ambos])]")
+    motivo_id = fields.Many2one('licitacion.motivo.descarte', string='Motivo', domain=[('aplica_a', 'in', ['procedimiento', 'ambos'])])
     nota = fields.Text(string='Nota')
 
     @api.depends('procedimiento_ids')

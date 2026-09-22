@@ -7,6 +7,30 @@ from xml.etree import ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def check_expression(expression, where, errors):
+    """Comprueba sintaxis sin evaluar dominios ni ejecutar llamadas/contextos."""
+    try:
+        ast.parse(expression.strip(), filename=where, mode='eval')
+    except SyntaxError as error:
+        errors.append(f'{where}: expresión inválida: {error.msg}')
+
+
+def check_python_expressions(tree, where, errors):
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.keyword) and node.arg in ('domain', 'context')
+                and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)):
+            check_expression(node.value.value, f'{where}:{node.lineno} ({node.arg})', errors)
+
+
+def check_xml_expressions(doc, where, errors):
+    for node in doc.iter():
+        for key, value in node.attrib.items():
+            if key in ('domain', 'context', 'invisible', 'readonly', 'required', 'eval', 'column_invisible') or key.startswith('decoration-'):
+                check_expression(value, f'{where} <{node.tag}> ({key})', errors)
+        if node.tag == 'field' and node.get('name') in ('domain', 'context') and node.text and node.text.strip():
+            check_expression(node.text, f'{where} <field name="{node.get("name")}">', errors)
+
+
 def main():
     errors = []
     manifest = ast.literal_eval((ROOT / '__manifest__.py').read_text())
@@ -19,6 +43,7 @@ def main():
     models, inherited = {}, []
     for source in ROOT.rglob('*.py'):
         tree = ast.parse(source.read_text(), filename=str(source))
+        check_python_expressions(tree, str(source.relative_to(ROOT)), errors)
         for cls in [n for n in tree.body if isinstance(n, ast.ClassDef)]:
             name, inherits, flds, methods = None, [], {}, set()
             for node in cls.body:
@@ -77,6 +102,7 @@ def main():
     xmlids = set()
     for path in ROOT.rglob('*.xml'):
         doc = ET.parse(path)
+        check_xml_expressions(doc, str(path.relative_to(ROOT)), errors)
         for rec in doc.findall('.//record'):
             xmlid = rec.get('id')
             if xmlid in xmlids:
@@ -93,7 +119,7 @@ def main():
             errors.append('ACL pública inesperada: ' + row['id'])
     if errors:
         raise SystemExit('\n'.join(errors))
-    print(f'OK: {len(list(ROOT.rglob("*.py")))} Python, {len(list(ROOT.rglob("*.xml")))} XML; manifest, campos, botones y ACL coherentes.')
+    print(f'OK: {len(list(ROOT.rglob("*.py")))} Python, {len(list(ROOT.rglob("*.xml")))} XML; manifest, campos, botones, ACL y expresiones coherentes.')
 
 
 if __name__ == '__main__':

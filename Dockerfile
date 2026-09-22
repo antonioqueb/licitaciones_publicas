@@ -18,7 +18,7 @@ import ast
 import shutil
 from pathlib import Path
 
-import odoo
+import odoo.addons
 from odoo import release
 import openpyxl
 import xlsxwriter
@@ -30,7 +30,16 @@ source = Path('/tmp/licitaciones-oca/odoo/addons/report_xlsx')
 manifest = ast.literal_eval((source / '__manifest__.py').read_text())
 if not manifest['version'].startswith('19.0.'):
     raise RuntimeError('report_xlsx debe corresponder a Odoo 19.0.')
-target = Path(odoo.__file__).resolve().parent / 'addons' / 'report_xlsx'
+# Odoo 19 usa paquetes namespace: odoo.__file__ puede ser None. Localizar
+# los addons por sus rutas de búsqueda y por el manifiesto del módulo base.
+addons_dirs = {
+    Path(path).resolve()
+    for path in odoo.addons.__path__
+    if (Path(path) / 'base' / '__manifest__.py').is_file()
+}
+if len(addons_dirs) != 1:
+    raise RuntimeError(f'No se identificó una única ruta de addons nativos: {sorted(map(str, addons_dirs))}')
+target = addons_dirs.pop() / 'report_xlsx'
 if target.exists():
     raise RuntimeError('La imagen base ya contiene report_xlsx; revisar antes de reemplazarlo.')
 shutil.copytree(source, target)
