@@ -5,7 +5,7 @@ import hashlib
 from odoo import fields
 from odoo.exceptions import AccessError, UserError
 
-from ..parser import (WorkbookReader, ImportValidationError, PARTIDA_FIELDS, DATE_FIELDS,
+from ..parser import (WorkbookReader, ImportValidationError, PARTIDA_FIELDS, DATE_FIELDS, LIST_METADATA_FIELDS,
                       business_key, diff_rows, digest, norm, identifier_parts)
 from .common import IMPORT_TOKEN, FLOW_TOKEN, require_companies
 
@@ -72,6 +72,7 @@ class LicitacionImporter:
                     'entidad_codigo': rec.entidad_id.code or '',
                     'estatus': norm(rec.estatus_portal_id.name), 'tipo_codigo': rec.tipo_contratacion_id.code}
                 row.update({k: fields.Datetime.to_string(rec[k]) if rec[k] else False for k in DATE_FIELDS})
+                row.update({k: rec[k] if k == 'numero_listado' else rec[k] or '' for k in LIST_METADATA_FIELDS})
             row['sigue_apareciendo'] = rec.sigue_apareciendo
             current[key] = row
             versions[key] = {'id': rec.id, 'write_date': fields.Datetime.to_string(rec.write_date)}
@@ -237,6 +238,7 @@ class LicitacionImporter:
                 'unidad_compradora_id': unit.id, 'estatus_portal_id': status.id, 'tipo_contratacion_id': tipo.id}
         if 'codigo_expediente' in row:
             vals['codigo_expediente'] = row['codigo_expediente'] or False
+        vals.update({k: row[k] for k in LIST_METADATA_FIELDS if k in row})
         vals.update({k: row[k] for k in DATE_FIELDS if k in row})
         return vals
 

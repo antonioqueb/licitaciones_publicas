@@ -1,6 +1,6 @@
 # DEV-01 / DEV-02 — Implementación para QA
 
-Rama: `qa/dev01-dev02-importacion`. Versión: `19.0.2.0.0`.
+Rama: `qa/dev01-dev02-importacion`. Versión: `19.0.2.0.1`.
 Estos cambios no se publican en `main` ni se aplican a producción.
 
 ## Catálogos
@@ -12,6 +12,8 @@ pueden configurar. Se conservan los registros: no se permite borrarlos.
 Se cargan los seis tipos solicitados, cuatro prefijos LA/IA/LI/LO y tres claves
 N/I/T. Sus descripciones son «Por definir por cliente». Los datos semilla tienen
 `noupdate=1`: actualizar el módulo conserva la configuración del cliente.
+El despliegue actual parte de QA `7cbee6d` (19.0.1.0.1), donde estos catálogos
+todavía no existen, por lo que se crean con la configuración completa.
 
 `licitacion.tipo.archivo` contiene todos los campos DEV-01. Se añade
 `mapeo_columnas` (JSON) para definir qué campo de destino corresponde a cada
@@ -88,6 +90,34 @@ Los catálogos y registros destino no se crean al previsualizar. La confirmació
 mantiene una única transacción y la clave MD5 de la terna de la partida.
 Se conserva el estado interno, las asignaciones y los expedientes.
 
+## Listado oficial: encabezados recibidos el 22/09/2026
+
+El perfil semilla valida las 13 columnas proporcionadas por el cliente. El
+mapeo sigue siendo configurable desde el catálogo:
+
+| Encabezado | Destino |
+| --- | --- |
+| NÚM. | `numero_listado` (entero, consecutivo del último listado) |
+| NÚMERO DE IDENTIFICACIÓN | `identificador` |
+| CARÁCTER | `caracter_publicado` (texto literal, independiente de la clave del identificador) |
+| NOMBRE | `nombre_publicado` |
+| SIGLAS DEPENDENCIA O ENTIDAD | `siglas_dependencia` |
+| ESTATUS | `estatus_portal_id` |
+| FECHA JUNTA DE ACLARACIONES | `fecha_junta_aclaraciones`, admite vacío |
+| FECHA DE PRESENTACIÓN Y APERTURA DE PROPOSICIONES | `fecha_apertura` |
+| TIPO DE PUBLICACIÓN | `tipo_publicacion` (texto literal) |
+| TIPO DE CONTRATACIÓN | `tipo_contratacion_id` |
+| CÓDIGO DE EXPEDIENTE | `codigo_expediente` |
+| UNIDAD COMPRADORA | `unidad_compradora_id` |
+| ENTIDAD FEDERATIVA | `entidad_id` de la unidad compradora |
+
+Los datos adicionales del portal se muestran en «Datos del listado» y solo los
+modifica una importación confirmada. También quedan en el snapshot de la carga.
+Las fechas de texto admiten `dd/mm/yyyy HH:MM`, segundos opcionales, fecha sin
+hora y formatos ISO de fecha con hora separada por espacio. Se convierten de la
+zona horaria declarada a UTC. Recibir los encabezados no equivale a haber probado
+el Excel original del cliente: los ejemplos de filas de las pruebas son sintéticos.
+
 ## Detalle en borrador y pendientes del cliente
 
 - Se muestra **BORRADOR - Pendiente validación cliente** en tipo de archivo,
@@ -103,9 +133,9 @@ Se conserva el estado interno, las asignaciones y los expedientes.
   ausencia en una carga del catálogo.
 - **No se recibió el catálogo SAI real.** No se siembran relaciones inventadas.
   Mientras falten, los detalles generan incidencias de partida no catalogada.
-- **Faltan los 13 encabezados exactos del listado oficial y los 10 de SAI.** El
-  perfil listado contiene las cuatro palabras/columnas conocidas, cantidad 13 y
-  alias configurables. Esto no certifica la carga del archivo oficial de 117 filas.
+- **Faltan los 10 encabezados exactos de SAI y el Excel original del listado.**
+  Los 13 encabezados del listado ya se incorporaron; sigue pendiente comprobar
+  las 117 filas reales, sus fechas y valores de catálogo.
 - La fila 2 del detalle 034 y cualquier hoja distinta se deben configurar como
   un perfil adicional (código único, patrón específico, prioridad adecuada).
   Ya no se adivina la fila recorriendo las primeras cinco.

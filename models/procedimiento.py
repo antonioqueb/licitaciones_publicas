@@ -3,7 +3,7 @@ from datetime import timedelta
 from odoo import api, fields, models, Command
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from ..parser import DATE_FIELDS, identifier_parts, ImportValidationError
+from ..parser import DATE_FIELDS, LIST_METADATA_FIELDS, identifier_parts, ImportValidationError
 from .common import FLOW_TOKEN, imported, internal, lock, modal
 
 STATES = [('detectado', 'Detectado'), ('analisis', 'En análisis'), ('preguntas', 'En preguntas'),
@@ -23,6 +23,12 @@ class Procedimiento(models.Model):
     identificador = fields.Char(required=True, index=True, copy=False, tracking=True)
     nombre_publicado = fields.Char(string='Nombre publicado', required=True, tracking=True)
     codigo_expediente = fields.Char(string='Código del expediente')
+    numero_listado = fields.Integer(string='Núm. del último listado', readonly=True,
+        help='Consecutivo publicado en el Excel; no sustituye al identificador del procedimiento.')
+    caracter_publicado = fields.Char(string='Carácter publicado', readonly=True,
+        help='Texto literal del portal. No cambia el significado de la clave en el catálogo del cliente.')
+    siglas_dependencia = fields.Char(string='Siglas dependencia o entidad', readonly=True)
+    tipo_publicacion = fields.Char(string='Tipo de publicación', readonly=True)
     tipo_procedimiento = fields.Char(string='Tipo', compute='_compute_identifier', store=True)
     caracter = fields.Char(string='Clave de carácter', compute='_compute_identifier', store=True)
     ordenamiento_legal = fields.Char(string='Ordenamiento previo', readonly=True,
@@ -142,7 +148,7 @@ class Procedimiento(models.Model):
 
     def _protected_fields(self):
         return {'estatus_portal_id', 'primer_snapshot_id', 'ultimo_snapshot_id', 'sigue_apareciendo',
-                'fecha_ya_no_aparece', 'fecha_fallo_original', 'reapertura_habilitada', 'company_ids'}
+                'fecha_ya_no_aparece', 'fecha_fallo_original', 'reapertura_habilitada', 'company_ids', *LIST_METADATA_FIELDS}
 
     def write(self, vals):
         if 'identificador' in vals:

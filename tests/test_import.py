@@ -6,7 +6,10 @@ from odoo.tests import tagged
 
 from .common import LicitacionCase, excel
 
-LIST_HEADERS = ['Número de identificación', 'Nombre', 'Unidad compradora', 'Estatus', 'Tipo de contratación', 'Fecha de junta de aclaraciones', 'Entidad federativa', 'Código expediente', 'Fecha de apertura', 'Fecha de fallo', 'Código unidad compradora', 'Fecha entrega muestras', 'Fecha límite preguntas']
+LIST_HEADERS = ['NÚM.', 'NÚMERO DE IDENTIFICACIÓN', 'CARÁCTER', 'NOMBRE',
+                'SIGLAS DEPENDENCIA O ENTIDAD', 'ESTATUS', 'FECHA JUNTA DE ACLARACIONES',
+                'FECHA DE PRESENTACIÓN Y APERTURA DE PROPOSICIONES', 'TIPO DE PUBLICACIÓN',
+                'TIPO DE CONTRATACIÓN', 'CÓDIGO DE EXPEDIENTE', 'UNIDAD COMPRADORA', 'ENTIDAD FEDERATIVA']
 
 
 @tagged('post_install', '-at_install')
@@ -145,7 +148,9 @@ class TestImport(LicitacionCase):
             self.preview(p, day='2026-09-20')
 
     def test_listado_117_synthetic_and_unknown_status(self):
-        rows = [[f'LA-50-GYR-050GYR032-N-{n}-2026', f'Procedimiento {n}', 'UC nueva', 'Nuevo estatus', 'Adquisiciones', '23/09/2026 09:00'] for n in range(1, 118)]
+        rows = [[n, f'LA-50-GYR-050GYR032-N-{n}-2026', 'Nacional', f'Procedimiento {n}',
+                 'IMSS', 'Nuevo estatus', '23/09/2026 09:00', '25/09/2026 10:00',
+                 'Licitación pública', 'Adquisiciones', f'E-2026-{n:08}', 'UC nueva', 'Zacatecas'] for n in range(1, 118)]
         def load():
             wizard = self.env['licitacion.carga.wizard'].create({'archivo': excel(rows, LIST_HEADERS), 'archivo_nombre': 'listado_sintetico.xlsx', 'fecha_snapshot': '2026-09-21'})
             action = wizard.action_preview()
@@ -172,7 +177,8 @@ class TestImport(LicitacionCase):
     def test_discarded_dates_notify_and_allow_manual_criba(self):
         p = self.procedure()
         p._cribar('descartar', self.reason)
-        rows = [[p.identificador, p.nombre_publicado, self.unit.name, 'Vigente', 'ADQ', '24/09/2026 10:00']]
+        rows = [[1, p.identificador, 'Texto del portal', p.nombre_publicado, 'IMSS', 'Vigente',
+                 '24/09/2026 10:00', '25/09/2026 10:00', 'Invitación', 'ADQ', 'E-2026-00000001', self.unit.name, 'Zacatecas']]
         wizard = self.env['licitacion.carga.wizard'].create({'archivo': excel(rows, LIST_HEADERS), 'archivo_nombre': 'listado.xlsx', 'fecha_snapshot': '2026-09-21'})
         action = wizard.action_preview()
         self.env['licitacion.preview.wizard'].browse(action['res_id']).action_confirm()

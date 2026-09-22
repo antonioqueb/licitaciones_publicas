@@ -1,4 +1,4 @@
-> **DEV-01/DEV-02 — Solo QA (19.0.2.0.0):** rama
+> **DEV-01/DEV-02 — Solo QA (19.0.2.0.1):** rama
 > `qa/dev01-dev02-importacion`. Ver [configuración dinámica y pendientes](docs/dev01-dev02-qa.md).
 > Esta rama no debe desplegarse en producción ni fusionarse a `main` sin una nueva instrucción.
 
@@ -224,7 +224,7 @@ el runtime base de Odoo; la aceptación debe repetirse en Enterprise.
 Los tests generan 117 y 50 filas **sintéticas**. La prueba con los tres archivos
 del cliente se omite explícitamente si no se suministran en
 [tests/fixtures](tests/fixtures/README.md). Esa omisión no satisface la aceptación.
-La calibración y prueba integral del listado oficial también permanecen pendientes.
+Los 13 encabezados oficiales ya están mapeados; permanece pendiente la prueba integral con el archivo original del cliente.
 
 ## Pendiente antes de aceptar v1
 

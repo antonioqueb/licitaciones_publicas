@@ -11,13 +11,8 @@
     <field name="origen">Compras MX</field>
     <field name="secuencia">10</field>
     <field name="palabras_clave_deteccion">["NUMERO DE IDENTIFICACION", "ESTATUS", "UNIDAD COMPRADORA", "ENTIDAD FEDERATIVA"]</field>
-    <field name="encabezados_esperados">{"cols": ["NUMERO DE IDENTIFICACION", "ESTATUS", "UNIDAD COMPRADORA", "ENTIDAD FEDERATIVA"]}</field>
+    <field name="encabezados_esperados">{"cols": ["NÚM.", "NÚMERO DE IDENTIFICACIÓN", "CARÁCTER", "NOMBRE", "SIGLAS DEPENDENCIA O ENTIDAD", "ESTATUS", "FECHA JUNTA DE ACLARACIONES", "FECHA DE PRESENTACIÓN Y APERTURA DE PROPOSICIONES", "TIPO DE PUBLICACIÓN", "TIPO DE CONTRATACIÓN", "CÓDIGO DE EXPEDIENTE", "UNIDAD COMPRADORA", "ENTIDAD FEDERATIVA"]}</field>
     <field name="mapeo_columnas">{
-  "numero": [
-    "num",
-    "numero",
-    "n"
-  ],
   "partida_especifica": [
     "partida especifica"
   ],
@@ -61,7 +56,8 @@
   ],
   "codigo_expediente": [
     "codigo expediente",
-    "codigo del expediente"
+    "codigo del expediente",
+    "CÓDIGO DE EXPEDIENTE"
   ],
   "unidad_codigo": [
     "codigo unidad compradora",
@@ -90,7 +86,8 @@
   "fecha_junta_aclaraciones": [
     "fecha de junta de aclaraciones",
     "fecha junta aclaraciones",
-    "junta de aclaraciones"
+    "junta de aclaraciones",
+    "FECHA JUNTA DE ACLARACIONES"
   ],
   "fecha_limite_preguntas": [
     "fecha limite preguntas",
@@ -123,6 +120,20 @@
     "descripcion sai",
     "nombre sai",
     "descripcion de la partida especifica"
+  ],
+  "numero_listado": [
+    "num",
+    "numero",
+    "n"
+  ],
+  "caracter_publicado": [
+    "CARÁCTER"
+  ],
+  "siglas_dependencia": [
+    "SIGLAS DEPENDENCIA O ENTIDAD"
+  ],
+  "tipo_publicacion": [
+    "TIPO DE PUBLICACIÓN"
   ]
 }</field>
   </record>

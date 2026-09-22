@@ -22,8 +22,9 @@ DATE_FIELDS = ('fecha_junta_aclaraciones', 'fecha_limite_preguntas',
                'fecha_entrega_muestras', 'fecha_apertura', 'fecha_fallo')
 PARTIDA_FIELDS = ('numero', 'partida_especifica', 'clave_cucop', 'descripcion_cucop',
                   'descripcion_detallada', 'unidad_medida', 'cantidad', 'cantidad_min', 'cantidad_max', 'cantidad_pendiente')
+LIST_METADATA_FIELDS = ('numero_listado', 'caracter_publicado', 'siglas_dependencia', 'tipo_publicacion')
 PORTAL_FIELDS = ('identificador', 'nombre_publicado', 'codigo_expediente',
-                 'unidad_codigo', 'unidad_nombre', 'entidad_codigo', 'entidad_nombre', 'estatus', 'tipo_codigo') + DATE_FIELDS
+                 'unidad_codigo', 'unidad_nombre', 'entidad_codigo', 'entidad_nombre', 'estatus', 'tipo_codigo') + DATE_FIELDS + LIST_METADATA_FIELDS
 
 
 def norm(value):
@@ -353,6 +354,14 @@ class WorkbookReader:
         for optional in ('entidad_codigo', 'codigo_expediente'):
             if optional not in self.headers:
                 row.pop(optional)
+        for optional in LIST_METADATA_FIELDS:
+            if optional not in self.headers:
+                row.pop(optional)
+        if 'numero_listado' in row:
+            value = number(data.get('numero_listado'), required=True)
+            if value != int(value) or value <= 0:
+                raise ImportValidationError('Núm. debe ser un entero positivo.')
+            row['numero_listado'] = int(value)
         # Only present columns may update dates; omitted headers do not erase dates.
         row.update({k: portal_datetime(data.get(k), self.tz_name) for k in DATE_FIELDS if k in self.headers})
         return row

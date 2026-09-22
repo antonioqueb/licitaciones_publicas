@@ -1,6 +1,6 @@
 from psycopg2 import IntegrityError
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import tagged
 
@@ -18,8 +18,39 @@ class TestDynamicImport(LicitacionCase):
         return self.env['licitacion.preview.wizard'].browse(action['res_id']).carga_id
 
     def list_row(self, identifier):
-        return [identifier, 'Procedimiento de prueba', 'UC de prueba', 'Vigente', 'ADQ',
-                '25/09/2026 10:00', 'Zacatecas', '', '', '', '', '', '']
+        return [1, identifier, 'Texto publicado por el portal', 'Procedimiento de prueba', 'IMSS',
+                'Vigente', '23/09/2026 10:00', '25/09/2026 10:00', 'Invitación', 'ADQ',
+                'E-2026-00101658', 'UC de prueba', 'Zacatecas']
+
+    def test_official_headers_preserve_all_columns_and_remain_idempotent(self):
+        row = self.list_row('LA-50-GYR-050GYR032-N-990-2026')
+        carga = self.load([row])
+        self.assertFalse(carga.aparicion_ids)
+        self.assertFalse(self.env['licitacion.procedimiento'].search([('identificador', '=', row[1])]))
+        carga._confirm()
+        p = carga.aparicion_ids.procedimiento_id
+        self.assertEqual(p.numero_listado, 1)
+        self.assertEqual(p.caracter_publicado, row[2])
+        self.assertEqual(p.siglas_dependencia, 'IMSS')
+        self.assertEqual(p.tipo_publicacion, 'Invitación')
+        self.assertEqual(p.codigo_expediente, 'E-2026-00101658')
+        self.assertEqual(p.fecha_junta_aclaraciones, fields.Datetime.to_datetime('2026-09-23 16:00:00'))
+        self.assertEqual(p.fecha_apertura, fields.Datetime.to_datetime('2026-09-25 16:00:00'))
+        self.assertEqual(p.caracter_procedimiento_id.descripcion, 'Por definir por cliente')
+        self.assertEqual(carga.aparicion_ids.datos_snapshot['caracter_publicado'], row[2])
+        second = self.load([row])
+        self.assertEqual((second.procedimientos_nuevos, second.procedimientos_cambios, second.procedimientos_sin_cambios), (0, 0, 1))
+        second._confirm()
+        with self.assertRaises(AccessError):
+            p.write({'caracter_publicado': 'Edición manual'})
+
+    def test_official_listing_accepts_empty_junta(self):
+        row = self.list_row('LA-50-GYR-050GYR032-N-990-2026')
+        row[6] = ''
+        carga = self.load([row])
+        carga._confirm()
+        self.assertFalse(carga.aparicion_ids.procedimiento_id.fecha_junta_aclaraciones)
+        self.assertTrue(carga.aparicion_ids.procedimiento_id.fecha_apertura)
 
     def test_seed_catalogs_and_client_descriptions(self):
         self.assertEqual(self.env['licitacion.tipo.archivo'].search_count([]), 6)
@@ -75,7 +106,7 @@ class TestDynamicImport(LicitacionCase):
         carga = self.load([invalid, valid])
         carga._confirm()
         self.assertEqual(carga.incidencia_ids.campo, 'prefijo_identificador')
-        self.assertEqual(carga.aparicion_ids.procedimiento_id.identificador, valid[0])
+        self.assertEqual(carga.aparicion_ids.procedimiento_id.identificador, valid[1])
         second = self.load([valid])
         self.assertEqual(second.procedimientos_gone, 0)
         second._confirm()
