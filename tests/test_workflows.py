@@ -31,8 +31,11 @@ class TestWorkflows(LicitacionCase):
         records = self.env['licitacion.procedimiento']
         for n in range(1, 6):
             records |= self.procedure(n)
-        wizard = self.env['licitacion.criba.wizard'].create({'procedimiento_ids': [Command.set(records.ids)],
-            'decision': 'descartar', 'motivo_id': self.reason.id, 'nota': 'Prueba por lote'})
+        form = self.modal_form(records.action_cribar())
+        form.decision = 'descartar'
+        form.motivo_id = self.reason
+        form.nota = 'Prueba por lote'
+        wizard = form.save()
         self.assertTrue(wizard.es_lote)
         wizard.action_apply()
         self.assertEqual(set(records.mapped('state')), {'descartado'})
@@ -74,6 +77,30 @@ class TestWorkflows(LicitacionCase):
         a = self.assign(self.partida(p), self.companies[:1])
         with self.assertRaises(AccessError):
             a.write({'rol': 'secundaria'})
+
+    def test_propagate_assignments_from_selected_source(self):
+        p = self.procedure()
+        p.action_pasar_a_analisis()
+        source = self.partida(p)
+        target = self.partida(p, number=2)
+        self.assign(source, self.companies[:2])
+        self.env['licitacion.partida.proveedor'].create({'partida_id': source.id, 'partner_id': self.partner.id})
+        selected = source | target
+        for kind in ('empresas', 'proveedores'):
+            with self.subTest(kind=kind):
+                action = getattr(selected, 'action_propagar_' + kind)()
+                self.assertFalse(action.get('res_id'))
+                form = self.modal_form(action)
+                self.assertFalse(form.fuente_id)
+                with self.assertRaises(AssertionError):
+                    form.save()
+                form.fuente_id = source
+                wizard = form.save()
+                self.assertEqual(wizard.partida_ids, selected)
+                wizard.action_apply()
+        self.assertEqual(target.company_ids, source.company_ids)
+        self.assertEqual(target.empresa_principal_id, source.empresa_principal_id)
+        self.assertEqual(target.partida_proveedor_ids.partner_id, self.partner)
 
     def test_partida_discard_and_reopen(self):
         p = self.procedure()

@@ -85,3 +85,37 @@ workspace de despliegue. El ensayo se detuvo en la base desechable
 `licitaciones_test`, antes de las pruebas ORM/PDF y antes de actualizar QA. No se
 ejecutó una actualización de producción. Instalación y pruebas completas siguen
 pendientes de una nueva ejecución con esta revisión publicada.
+
+## Tercer ensayo: captura de asistentes y solicitudes PDF · 22/09/2026 UTC
+
+El release `licitaciones-20260922T052525384904Z`, con `491f5fa`, superó la carga de
+vistas y llegó a las pruebas ORM. `test_unknown_identifier_requires_assignment`
+encontró que `modal()` creaba el asistente de asignación antes de que el usuario
+indicara el procedimiento y la justificación obligatorios. Se abría con datos
+incompletos y PostgreSQL rechazaba `procedimiento_id = NULL`.
+
+Los asistentes de captura ahora se abren sin registro persistido, con valores
+`default_*` en el contexto de la acción. Se mantienen las restricciones de campos
+obligatorios al guardar. Esto corrige también los asistentes de resolución y
+propagación, que seguían el mismo patrón. Solo el preview se crea anticipadamente,
+pues dispone de todos sus datos y materializa las filas del diff antes de mostrarse.
+El contexto interno de importación no se devuelve al cliente.
+
+Las pruebas ORM utilizan `Form` para recorrer apertura, captura, validación de
+campos requeridos y confirmación: asignación pendiente, criba por lote, generación
+de expedientes, resolución/ignoración y propagación de empresas/proveedores. Se
+añadió una comprobación de serialización de la acción sin tokens internos.
+
+El ensayo se quedó en el primer PDF tras un timeout HTTP. La prueba heredaba solo
+de `TransactionCase`; ahora combina los fixtures con `HttpCase`, que prepara el
+cursor compartido y permite las solicitudes HTTP de wkhtmltopdf. Este mecanismo
+está implementado en el [framework oficial de pruebas de Odoo 19](https://github.com/odoo/odoo/blob/19.0/odoo/tests/common.py).
+Se conserva `force_report_rendering=True` y la validación de los tres PDF reales;
+no se reemplaza la salida por HTML ni por archivos simulados.
+
+Validación local de la revisión: **46 tests independientes correctos**, checker
+de 33 Python/18 XML y `git diff --check` aprobados. Las pruebas ORM nuevas y PDF
+corregidas todavía requieren repetición en el servidor. El fragmento remoto
+disponible confirma el error del asistente; no permite dar por aprobada la suite.
+La actualización de QA permanece detrás de esta prueba aislada y el instalador
+no ejecuta una actualización de producción.

@@ -30,10 +30,18 @@ def require_companies(records, companies):
         raise AccessError('Active todas las empresas seleccionadas antes de continuar.')
 
 
-def modal(model, values=None):
-    rec = model.create(values or {})
-    return {'type': 'ir.actions.act_window', 'res_model': model._name,
-            'res_id': rec.id, 'view_mode': 'form', 'target': 'new'}
+def modal(model, values=None, *, persist=False):
+    """Abrir captura sin guardar campos obligatorios que el usuario aún no eligió."""
+    action = {'type': 'ir.actions.act_window', 'res_model': model._name,
+              'view_mode': 'form', 'target': 'new'}
+    if persist:
+        # El preview materializa sus filas antes de mostrarlas; ya está completo.
+        action['res_id'] = model.create(values or {}).id
+    else:
+        # Enviar solo defaults: el contexto interno puede contener tokens privados
+        # de importación que no se deben devolver al cliente ni serializar a JSON.
+        action['context'] = {'default_' + key: value for key, value in (values or {}).items()}
+    return action
 
 
 class Retained(models.AbstractModel):

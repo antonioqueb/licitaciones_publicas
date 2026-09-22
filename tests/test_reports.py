@@ -2,12 +2,15 @@ import io
 
 import openpyxl
 from odoo.tests import tagged
+from odoo.tests.common import HttpCase
 
 from .common import LicitacionCase
 
 
 @tagged('post_install', '-at_install')
-class TestReports(LicitacionCase):
+class TestReports(LicitacionCase, HttpCase):
+    # HttpCase habilita solicitudes de wkhtmltopdf con el cursor de prueba y
+    # libera el bloqueo HTTP mientras se renderiza. No requiere abrir un navegador.
     def test_all_three_pdf_reports(self):
         p, line, exps = self.full_expedientes()
         exp = exps[0]

@@ -93,7 +93,7 @@ class Carga(models.Model):
 
     def _open_preview(self):
         self.ensure_one()
-        return modal(self.env['licitacion.preview.wizard'], {'carga_id': self.id})
+        return modal(self.env['licitacion.preview.wizard'], {'carga_id': self.id}, persist=True)
 
     def action_preview(self):
         return self._prepare()

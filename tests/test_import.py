@@ -34,9 +34,33 @@ class TestImport(LicitacionCase):
 
     def test_unknown_identifier_requires_assignment(self):
         p = self.procedure()
+        model = self.env['licitacion.asignar.procedimiento.wizard']
+        before = model.search_count([])
         carga = self.preview(p, filename='IA-50-GYR-050GYR999-N-999-2026.xlsx')
         self.assertEqual(carga.state, 'pendiente_asignacion')
         self.assertFalse(carga.procedimiento_id)
+        action = carga.action_asignar()
+        self.assertFalse(action.get('res_id'))
+        self.assertEqual(model.search_count([]), before)
+        form = self.modal_form(action)
+        self.assertEqual(form.carga_id, carga)
+        self.assertFalse(form.procedimiento_id)
+        with self.assertRaises(AssertionError):
+            form.save()
+        form.procedimiento_id = p
+        with self.assertRaises(AssertionError):
+            form.save()
+        form.nota = 'Archivo identificado y vinculado por el responsable.'
+        wizard = form.save()
+        preview_action = wizard.action_asignar()
+        self.assertEqual(carga.procedimiento_id, p)
+        self.assertEqual(carga.state, 'previsualizada')
+        self.assertFalse(p.partida_ids)
+        preview = self.env[preview_action['res_model']].browse(preview_action['res_id'])
+        self.assertTrue(preview.nuevos_ids)
+        preview.action_confirm()
+        self.assertEqual(carga.state, 'confirmada')
+        self.assertEqual(len(p.partida_ids), 1)
 
     def test_blank_optional_description_is_idempotent(self):
         p = self.procedure()
@@ -75,7 +99,12 @@ class TestImport(LicitacionCase):
         self.assertEqual(p.tipo_contratacion_id.code, 'SER')
         with self.assertRaises(ValidationError):
             incident._resolve('resolver', '')
-        incident._resolve('resolver', 'La convocatoria corresponde a bienes; validado por el responsable.')
+        form = self.modal_form(incident.action_resolver())
+        self.assertEqual(form.incidencia_id, incident)
+        with self.assertRaises(AssertionError):
+            form.save()
+        form.nota = 'La convocatoria corresponde a bienes; validado por el responsable.'
+        form.save().action_apply()
         self.assertEqual(p.tipo_contratacion_id.code, 'ADQ')
         self.assertEqual(incident.state, 'resuelta')
 
@@ -94,6 +123,20 @@ class TestImport(LicitacionCase):
         again = self.preview(p, rows=rows)
         again._confirm()
         self.assertTrue(gone.sigue_apareciendo)
+
+    def test_ignore_incident_requires_note_in_form(self):
+        p = self.procedure(tipo='ser')
+        rows = [[n, 21601, f'21601-{n:04}', 'FIBRA', f'Fibra {n}', 'PIEZA', 10] for n in (1, 2)]
+        self.preview(p, rows=rows)._confirm()
+        incident = p.incidencia_ids
+        form = self.modal_form(incident.action_ignorar())
+        self.assertEqual(form.decision, 'ignorar')
+        with self.assertRaises(AssertionError):
+            form.save()
+        form.nota = 'Revisado: se conserva la clasificación del procedimiento.'
+        form.save().action_apply()
+        self.assertEqual(incident.state, 'ignorada')
+        self.assertEqual(p.tipo_contratacion_id.code, 'SER')
 
     def test_older_snapshot_rejected(self):
         p = self.procedure()

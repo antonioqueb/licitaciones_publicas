@@ -1,8 +1,11 @@
+import json
+
 from odoo import Command
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import tagged
 
 from .common import LicitacionCase
+from ..models.common import FLOW_TOKEN, IMPORT_TOKEN
 
 
 @tagged('post_install', '-at_install')
@@ -30,6 +33,13 @@ class TestSecurity(LicitacionCase):
             p.with_context(_lp_import=True).write({'estatus_portal_id': self.env.ref('licitaciones_publicas.estatus_vigente').id})
         with self.assertRaises(UserError):
             p.with_context(_lp_flow=True).write({'state': 'analisis'})
+
+    def test_modal_does_not_return_internal_tokens(self):
+        p = self.procedure()
+        action = p.with_context(_lp_import=IMPORT_TOKEN, _lp_flow=FLOW_TOKEN).action_cribar()
+        self.assertNotIn('_lp_import', action['context'])
+        self.assertNotIn('_lp_flow', action['context'])
+        self.assertTrue(json.dumps(action))
 
     def test_cannot_assign_unauthorized_company(self):
         p = self.procedure()

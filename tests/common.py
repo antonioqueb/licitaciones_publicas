@@ -3,6 +3,7 @@ import io
 
 import openpyxl
 from odoo import Command, fields
+from odoo.tests import Form
 from odoo.tests.common import TransactionCase
 
 from ..models.common import IMPORT_TOKEN
@@ -52,13 +53,17 @@ class LicitacionCase(TransactionCase):
         return self.env['licitacion.partida.empresa'].create([
             {'partida_id': partida.id, 'company_id': company.id} for company in (companies or self.companies)])
 
+    def modal_form(self, action):
+        model = self.env[action['res_model']].with_context(**action.get('context', {}))
+        return Form(model.browse(action.get('res_id')))
+
     def full_expedientes(self):
         procedure = self.procedure()
         procedure.action_pasar_a_analisis()
         line = self.partida(procedure)
         self.assign(line)
         self.env['licitacion.partida.proveedor'].create({'partida_id': line.id, 'partner_id': self.partner.id})
-        wizard = self.env['licitacion.generar.expedientes.wizard'].create({'procedimiento_id': procedure.id})
+        wizard = self.modal_form(procedure.action_generar_expedientes()).save()
         wizard.action_generate()
         return procedure, line, procedure.expediente_ids.sorted('company_id')
 
@@ -67,5 +72,6 @@ class LicitacionCase(TransactionCase):
         wizard = self.env['licitacion.carga.wizard'].create({'archivo': excel(rows, blanks=blanks),
             'archivo_nombre': filename or procedure.identificador + '.xlsx', 'fecha_snapshot': day})
         action = wizard.action_preview()
-        model = self.env[action['res_model']].browse(action['res_id'])
-        return model.carga_id
+        if action.get('res_id'):
+            return self.env[action['res_model']].browse(action['res_id']).carga_id
+        return self.env['licitacion.carga'].browse(action['context']['default_carga_id'])
