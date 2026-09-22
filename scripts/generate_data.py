@@ -18,7 +18,7 @@ def record(xmlid, model, vals):
 def generate():
     models = ['procedimiento', 'partida', 'partida.empresa', 'partida.proveedor', 'expediente', 'pregunta',
               'costeo.linea', 'documento', 'documento.version', 'carta.apoyo', 'carga', 'aparicion', 'incidencia', 'fecha.fatal']
-    catalogs = ['unidad.compradora', 'estatus.portal', 'motivo.descarte', 'tipo.contratacion', 'entidad.federativa', 'clave.cucop']
+    catalogs = ['unidad.compradora', 'estatus.portal', 'motivo.descarte', 'tipo.contratacion', 'entidad.federativa', 'clave.cucop', 'tipo.archivo', 'tipo.procedimiento', 'caracter.procedimiento', 'clave.sai']
     wizards = ['carga.wizard', 'asignar.procedimiento.wizard', 'preview.wizard', 'preview.line', 'criba.wizard',
                'generar.expedientes.wizard', 'resolver.incidencia.wizard', 'propagar.empresas.wizard', 'propagar.proveedores.wizard']
     with (ROOT / 'security/ir.model.access.csv').open('w') as handle:
@@ -44,6 +44,8 @@ def generate():
     for name in models:
         if name in ['expediente', 'pregunta', 'costeo.linea', 'documento', 'documento.version', 'carta.apoyo', 'partida.empresa']:
             domain = "[('company_id', 'in', company_ids)]"
+        elif name == 'incidencia':
+            domain = "['|', '&', ('procedimiento_id', '!=', False), '|', ('procedimiento_id.company_ids', '=', False), ('procedimiento_id.company_ids', 'in', company_ids), '&', ('procedimiento_id', '=', False), ('carga_id.company_ids', 'in', company_ids)]"
         elif name == 'carga':
             domain = "[('company_ids', 'in', company_ids)]"
         else:

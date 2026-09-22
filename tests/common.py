@@ -13,6 +13,7 @@ HEADERS = ['Núm.', 'Partida específica', 'Clave CUCoP+', 'Descripción CUCoP+'
 
 def excel(rows, headers=HEADERS, blanks=0):
     workbook = openpyxl.Workbook()
+    workbook.active.title = "sheet1"
     for _ in range(blanks):
         workbook.active.append([None])
     workbook.active.append(headers)
@@ -33,6 +34,9 @@ class LicitacionCase(TransactionCase):
             {'name': 'Prueba licitante C', 'currency_id': cls.env.ref('base.MXN').id},
         ])
         cls.env = cls.env(context=dict(cls.env.context, allowed_company_ids=cls.companies.ids, mail_create_nosubscribe=True, tracking_disable=True))
+        cucops = cls.env['licitacion.clave.cucop'].create([
+            {'code': f'21601-{n:04}', 'name': f'CUCoP de prueba {n}'} for n in range(1, 51)])
+        cls.env['licitacion.clave.sai'].create({'code': '21601', 'name': 'Partida SAI de prueba', 'cucop_ids': [Command.set(cucops.ids)]})
         cls.unit = cls.env['licitacion.unidad.compradora'].create({'code': 'TEST032', 'name': 'Unidad de prueba'})
         cls.reason = cls.env.ref('licitaciones_publicas.motivo_no_giro')
         cls.partner = cls.env['res.partner'].create({'name': 'Proveedor de prueba', 'es_proveedor_licitacion': True, 'email': 'supplier@example.invalid', 'company_id': False})

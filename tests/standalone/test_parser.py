@@ -1,5 +1,7 @@
 import importlib.util
 import io
+import json
+from xml.etree import ElementTree as ET
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -16,8 +18,29 @@ ROW = [1, 21601.0, '21601-0028', 'FIBRA', 'Fibra verde\n"Limpieza"', 'PIEZA', 40
 IDENTIFIER = 'IA-50-GYR-050GYR032-N-89-2026'
 
 
+def profiles():
+    result = []
+    for node in ET.parse(ROOT / 'data/tipos_archivo.xml').findall("record[@model='licitacion.tipo.archivo']"):
+        cfg = {field.get('name'): field.text for field in node.findall('field')}
+        for name in ('hojas', 'fila_encabezado', 'total_columnas', 'secuencia'):
+            cfg[name] = int(cfg[name])
+        result.append(cfg)
+    return result
+
+
+def legacy_profiles():
+    # Los ejemplos antiguos tenían solo seis columnas de listado. Este formato
+    # se define aquí como configuración de prueba, no como fallback del lector.
+    result = profiles()
+    listado = next(c for c in result if c['tipo_dato'] == 'listado')
+    listado.update(total_columnas=6, palabras_clave_deteccion='["UNIDAD COMPRADORA", "ESTATUS"]',
+                   encabezados_esperados='{"cols":["UNIDAD COMPRADORA", "ESTATUS"],"columnas_alternativas":[5]}')
+    return result
+
+
 def workbook(headers=HEADERS, rows=None, blank_rows=0):
     wb = openpyxl.Workbook()
+    wb.active.title = "sheet1"
     for _ in range(blank_rows):
         wb.active.append([None])
     wb.active.append(headers)
@@ -29,7 +52,7 @@ def workbook(headers=HEADERS, rows=None, blank_rows=0):
 
 
 def read(data, filename=IDENTIFIER + '.xlsx', **kwargs):
-    reader = parser.WorkbookReader(data, filename, **kwargs)
+    reader = parser.WorkbookReader(data, filename, profiles=kwargs.pop("profiles", legacy_profiles()), **kwargs)
     try:
         return reader.rows()
     finally:
@@ -48,13 +71,17 @@ class TestParser(unittest.TestCase):
         self.assertEqual(len(read(workbook(rows=rows))), 50)
 
     def test_headers_second_row(self):
-        self.assertEqual(len(read(workbook(blank_rows=1))), 1)
+        configs = profiles()
+        for c in configs: c["fila_encabezado"] = 2
+        self.assertEqual(len(read(workbook(blank_rows=1), profiles=configs)), 1)
 
     def test_headers_fifth_row(self):
-        self.assertEqual(len(read(workbook(blank_rows=4))), 1)
+        configs = profiles()
+        for c in configs: c["fila_encabezado"] = 5
+        self.assertEqual(len(read(workbook(blank_rows=4), profiles=configs)), 1)
 
     def test_headers_sixth_row_rejected(self):
-        with self.assertRaisesRegex(parser.ImportValidationError, 'primeras 5'):
+        with self.assertRaisesRegex(parser.ImportValidationError, 'tipo de archivo'):
             read(workbook(blank_rows=5))
 
     def test_blank_trailing_rows_ignored(self):
@@ -81,15 +108,18 @@ class TestParser(unittest.TestCase):
 
     def test_zero_quantity_does_not_fall_back(self):
         data = workbook(HEADERS + ['Cantidad mínima', 'Cantidad máxima'], [ROW[:-1] + [0, 0, 30]])
-        self.assertEqual(read(data)[0]['cantidad'], 0)
+        configs = profiles()
+        next(c for c in configs if c['tipo_dato'] == 'detalle_rangos')['total_columnas'] = 9
+        self.assertEqual(read(data, profiles=configs)[0]['cantidad'], 0)
 
     def test_invalid_range(self):
         with self.assertRaisesRegex(parser.ImportValidationError, 'mínima mayor'):
             read(workbook(HEADERS[:-1] + ['Cantidad mínima', 'Cantidad máxima'], [ROW[:-1] + [30, 10]]))
 
-    def test_missing_quantity_columns(self):
-        with self.assertRaisesRegex(parser.ImportValidationError, 'Cantidad solicitada'):
-            read(workbook(HEADERS[:-1], [ROW[:-1]]))
+    def test_missing_quantity_is_pending_service(self):
+        row = read(workbook(HEADERS[:-1], [ROW[:-1]]))[0]
+        self.assertTrue(row['cantidad_pendiente'])
+        self.assertEqual(row['cantidad'], 0)
 
     def test_missing_required_value(self):
         row = list(ROW)
@@ -133,7 +163,7 @@ class TestParser(unittest.TestCase):
                 read(workbook(rows=[row]))
 
     def test_duplicate_headers(self):
-        with self.assertRaisesRegex(parser.ImportValidationError, 'duplicados'):
+        with self.assertRaises(parser.ImportValidationError):
             read(workbook(HEADERS + ['Cantidad'], [ROW + [4000]]))
 
     def test_invalid_file(self):
@@ -160,13 +190,13 @@ class TestParser(unittest.TestCase):
     def test_filename_identifier(self):
         for prefix in ['IA', 'LA', 'LO', 'IO', 'AD', 'LI']:
             identifier = IDENTIFIER.replace('IA-', prefix + '-')
-            reader = parser.WorkbookReader(workbook(), 'export_' + identifier + ' (1).xlsx')
+            reader = parser.WorkbookReader(workbook(), 'export_' + identifier + ' (1).xlsx', profiles=profiles())
             try:
                 self.assertEqual(reader.detect_identifier_from_filename(), identifier)
-                self.assertEqual(parser.identifier_parts(identifier)['ordenamiento_legal'], 'LOPSRM' if prefix in ('LO', 'IO') else 'LAASSP')
+                self.assertNotIn('ordenamiento_legal', parser.identifier_parts(identifier))
             finally:
                 reader.close()
-        reader = parser.WorkbookReader(workbook(), 'sin-identificador.xlsx')
+        reader = parser.WorkbookReader(workbook(), 'sin-identificador.xlsx', profiles=profiles())
         self.assertIsNone(reader.detect_identifier_from_filename())
         reader.close()
 

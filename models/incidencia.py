@@ -3,7 +3,7 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from ..parser import DATE_FIELDS
+from ..parser import DATE_FIELDS, identifier_parts
 from .common import IMPORT_TOKEN, FLOW_TOKEN, imported, internal, lock, modal
 
 RESOLVABLE = {'procedimiento': {'tipo_contratacion_id', 'unidad_compradora_id', 'entidad_id', 'nombre_publicado', *DATE_FIELDS},
@@ -18,9 +18,10 @@ class Incidencia(models.Model):
     _rec_name = 'campo'
 
     carga_id = fields.Many2one('licitacion.carga', string='Carga', ondelete='restrict')
-    procedimiento_id = fields.Many2one('licitacion.procedimiento', string='Procedimiento', required=True, ondelete='restrict')
+    procedimiento_id = fields.Many2one('licitacion.procedimiento', string='Procedimiento', ondelete='restrict')
+    identificador_observado = fields.Char(string='Identificador observado', readonly=True)
     partida_id = fields.Many2one('licitacion.partida', string='Partida', ondelete='restrict')
-    origen = fields.Selection([('procedimiento', 'Procedimiento'), ('partida', 'Partida')], string='Origen', required=True)
+    origen = fields.Selection([('procedimiento', 'Procedimiento'), ('partida', 'Partida'), ('carga', 'Fila pendiente de catálogo')], string='Origen', required=True)
     campo = fields.Char(string='Campo', required=True)
     valor_esperado = fields.Text(string='Valor actual')
     valor_encontrado = fields.Text(string='Valor encontrado')
@@ -33,9 +34,13 @@ class Incidencia(models.Model):
     fecha_resolucion = fields.Datetime(string='Fecha de resolución', readonly=True)
     escalada_fecha = fields.Datetime(string='Escalada el', readonly=True)
 
-    @api.constrains('partida_id', 'procedimiento_id', 'origen')
+    @api.constrains('partida_id', 'procedimiento_id', 'origen', 'carga_id')
     def _check_target(self):
         for rec in self:
+            if rec.origen == 'carga' and (not rec.carga_id or not rec.identificador_observado):
+                raise ValidationError('Una fila pendiente requiere carga e identificador observado.')
+            if rec.origen != 'carga' and not rec.procedimiento_id:
+                raise ValidationError('Esta incidencia requiere un procedimiento.')
             if rec.origen == 'partida' and not rec.partida_id:
                 raise ValidationError('Una incidencia de partida requiere el renglón afectado.')
             if rec.partida_id and rec.partida_id.procedimiento_id != rec.procedimiento_id:
@@ -47,7 +52,7 @@ class Incidencia(models.Model):
             raise AccessError('Las incidencias se generan durante la importación.')
         records = super().create(vals_list)
         for rec in records:
-            rec.activity_schedule('mail.mail_activity_data_todo', user_id=rec.procedimiento_id.user_id.id, summary='Revisar incidencia de importación')
+            rec.activity_schedule('mail.mail_activity_data_todo', user_id=(rec.procedimiento_id.user_id or rec.carga_id.user_id).id, summary='Revisar incidencia de importación')
         return records
 
     def write(self, vals):
@@ -73,12 +78,25 @@ class Incidencia(models.Model):
         if decision not in ('resolver', 'ignorar'):
             raise ValidationError('Decisión desconocida.')
         if decision == 'resolver':
-            if self.campo == 'asignacion_archivo':
-                # A manual association is explicitly acknowledged; never rename the parent.
-                if not self.carga_id.nota_asignacion:
-                    raise UserError('Documente primero la justificación de asignación del archivo.')
+            if self.campo in ('prefijo_identificador', 'caracter_identificador'):
+                parts = identifier_parts(self.identificador_observado)
+                if self.campo == 'prefijo_identificador':
+                    valid = self.env['licitacion.tipo.procedimiento'].search_count([('prefijo', '=', parts['tipo_procedimiento']), ('activo', '=', True)])
+                else:
+                    valid = self.env['licitacion.caracter.procedimiento'].search_count([('clave', '=', parts['caracter'])])
+                if not valid:
+                    raise UserError('Registre primero el identificador en el catálogo del cliente. Después vuelva a cargar las filas pendientes.')
+            elif self.campo in ('partida_sai', 'cucop_sai'):
+                sai = self.env['licitacion.clave.sai'].search([('code', '=', self.partida_id.partida_especifica)], limit=1)
+                if not sai or (self.campo == 'cucop_sai' and self.partida_id.clave_cucop not in sai.cucop_ids.filtered('active').mapped('code')):
+                    raise UserError('Corrija primero el catálogo SAI y su relación con CUCoP+.')
+            elif self.campo == 'asignacion_archivo':
+                # La nota obligatoria documenta también diferencias detectadas
+                # en el contenido de un archivo asociado automáticamente.
+                # La carga cerrada y su procedimiento permanecen inmutables.
+                pass
             else:
-                if self.campo not in RESOLVABLE[self.origen]:
+                if self.campo not in RESOLVABLE.get(self.origen, set()):
                     raise UserError('Este campo no admite resolución automática.')
                 target = self.partida_id if self.origen == 'partida' else self.procedimiento_id
                 if self.campo == 'entidad_id':
@@ -108,7 +126,8 @@ class Incidencia(models.Model):
             lock(rec)
             if rec.escalada_fecha:
                 continue
-            eligible = managers.filtered(lambda u: not rec.procedimiento_id.company_ids or bool(u.company_ids & rec.procedimiento_id.company_ids))
+            companies = rec.procedimiento_id.company_ids if rec.procedimiento_id else rec.carga_id.company_ids
+            eligible = managers.filtered(lambda u: not companies or bool(u.company_ids & companies))
             for manager in eligible:
                 rec.activity_schedule('mail.mail_activity_data_todo', user_id=manager.id, summary='Incidencia bloqueante sin resolver')
             if eligible:

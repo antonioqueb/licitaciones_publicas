@@ -75,13 +75,15 @@ class Expediente(models.Model):
             rec.margen_pct = rec.margen_bruto / rec.total_precio * 100 if rec.total_precio else 0
 
     @api.depends('documento_ids.bloqueante', 'documento_ids.state', 'documento_ids.fecha_vencimiento',
-                 'procedimiento_id.incidencia_ids.state')
+                 'procedimiento_id.incidencia_ids.state', 'partida_ids.cantidad_pendiente')
     def _compute_bloqueantes(self):
         today = fields.Date.context_today(self)
         for rec in self:
             pending = rec.documento_ids.filtered(lambda d: d.bloqueante and d.state != 'no_aplica' and (
                 d.state != 'recibido' or (d.fecha_vencimiento and d.fecha_vencimiento < today)))
             labels = [dict(DOCUMENT_TYPES)[d.tipo] for d in pending]
+            if rec.partida_ids.filtered('cantidad_pendiente'):
+                labels.append('Cantidades de servicios pendientes de validación')
             if rec.procedimiento_id.incidencia_ids.filtered(lambda i: i.state == 'abierta' and i.severidad == 'bloqueante'):
                 labels.append('Incidencias bloqueantes abiertas')
             rec.bloqueantes_pendientes = '\n'.join(labels)
@@ -211,6 +213,8 @@ class Costeo(models.Model):
     def _check_recargo_mayor_principal(self):
         self._check_partida_expediente()
         for rec in self:
+            if rec.partida_id.cantidad_pendiente:
+                raise ValidationError('La cantidad de este servicio está pendiente. Confírmela mediante una nueva carga antes de costear.')
             if not all(math.isfinite(rec[k]) for k in ('costo_unitario', 'precio_unitario', 'recargo_secundaria_pct')):
                 raise ValidationError('Los importes y porcentajes deben ser números finitos.')
             if rec.proveedor_id and rec.proveedor_id not in rec.partida_id.partida_proveedor_ids.partner_id:

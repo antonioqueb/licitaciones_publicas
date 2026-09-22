@@ -1,3 +1,7 @@
+> **DEV-01/DEV-02 — Solo QA (19.0.2.0.0):** rama
+> `qa/dev01-dev02-importacion`. Ver [configuración dinámica y pendientes](docs/dev01-dev02-qa.md).
+> Esta rama no debe desplegarse en producción ni fusionarse a `main` sin una nueva instrucción.
+
 # Gestión de Licitaciones Públicas · Odoo 19
 
 Implementación inicial del brief v1: cargas Excel con previsualización, criba,
@@ -118,8 +122,8 @@ el socket local de Docker devuelve `permission denied`.
 - **Agenda:** cinco tipos de fecha en una vista SQL, calendario y lista, filtros
   próximas 72 horas, vencidas sin actuar, juntas y preguntas.
 - **Cargas → Nueva carga:** archivo `.xlsx`, fecha declarada, origen, zona
-  horaria y alcance de búsqueda. Se utiliza la primera hoja y se buscan los
-  encabezados entre las filas 1 y 5. El detalle sin padre conocido permanece
+  horaria y alcance de búsqueda. La hoja, fila, cantidad de columnas y mapeo se
+  obtienen del catálogo Tipos de archivo (DEV-01). El detalle sin padre conocido permanece
   pendiente hasta asignarlo con justificación.
 - **Preview:** nuevos, cambios, sin cambios y ya no aparecen. Los catálogos y
   registros destino se escriben únicamente al confirmar. Un archivo vacío o

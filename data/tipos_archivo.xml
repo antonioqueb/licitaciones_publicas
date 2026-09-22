@@ -1,0 +1,792 @@
+<odoo noupdate="1">
+  <record id="tipo_archivo_listado_procedimientos" model="licitacion.tipo.archivo">
+    <field name="name">Listado de procedimientos</field>
+    <field name="codigo">listado_procedimientos</field>
+    <field name="tipo_dato">listado</field>
+    <field name="patron_nombre">InformaciónPública_export_*.xlsx</field>
+    <field name="total_columnas">13</field>
+    <field name="hojas">1</field>
+    <field name="hoja_nombre">sheet1</field>
+    <field name="fila_encabezado">1</field>
+    <field name="origen">Compras MX</field>
+    <field name="secuencia">10</field>
+    <field name="palabras_clave_deteccion">["NUMERO DE IDENTIFICACION", "ESTATUS", "UNIDAD COMPRADORA", "ENTIDAD FEDERATIVA"]</field>
+    <field name="encabezados_esperados">{"cols": ["NUMERO DE IDENTIFICACION", "ESTATUS", "UNIDAD COMPRADORA", "ENTIDAD FEDERATIVA"]}</field>
+    <field name="mapeo_columnas">{
+  "numero": [
+    "num",
+    "numero",
+    "n"
+  ],
+  "partida_especifica": [
+    "partida especifica"
+  ],
+  "clave_cucop": [
+    "clave cucop"
+  ],
+  "descripcion_cucop": [
+    "descripcion cucop"
+  ],
+  "descripcion_detallada": [
+    "descripcion detallada"
+  ],
+  "unidad_medida": [
+    "unidad de medida",
+    "unidad medida"
+  ],
+  "cantidad": [
+    "cantidad solicitada",
+    "cantidad"
+  ],
+  "cantidad_min": [
+    "cantidad minima"
+  ],
+  "cantidad_max": [
+    "cantidad maxima"
+  ],
+  "identificador": [
+    "numero de procedimiento",
+    "numero procedimiento",
+    "no procedimiento",
+    "identificador",
+    "numero de identificacion"
+  ],
+  "nombre_publicado": [
+    "nombre publicado",
+    "nombre",
+    "nombre del procedimiento",
+    "descripcion del procedimiento",
+    "descripcion",
+    "titulo del procedimiento"
+  ],
+  "codigo_expediente": [
+    "codigo expediente",
+    "codigo del expediente"
+  ],
+  "unidad_codigo": [
+    "codigo unidad compradora",
+    "codigo de la unidad compradora",
+    "clave uc"
+  ],
+  "unidad_nombre": [
+    "unidad compradora",
+    "nombre de la unidad compradora"
+  ],
+  "entidad_codigo": [
+    "codigo entidad",
+    "codigo inegi",
+    "codigo entidad federativa"
+  ],
+  "estatus": [
+    "estatus",
+    "estatus portal",
+    "estatus del procedimiento",
+    "estado del procedimiento"
+  ],
+  "tipo_codigo": [
+    "tipo de contratacion",
+    "tipo contratacion"
+  ],
+  "fecha_junta_aclaraciones": [
+    "fecha de junta de aclaraciones",
+    "fecha junta aclaraciones",
+    "junta de aclaraciones"
+  ],
+  "fecha_limite_preguntas": [
+    "fecha limite preguntas",
+    "fecha limite de preguntas",
+    "limite de preguntas"
+  ],
+  "fecha_entrega_muestras": [
+    "fecha entrega muestras",
+    "fecha de entrega de muestras"
+  ],
+  "fecha_apertura": [
+    "fecha de apertura",
+    "fecha apertura",
+    "fecha de presentacion y apertura de proposiciones"
+  ],
+  "fecha_fallo": [
+    "fecha de fallo",
+    "fecha fallo",
+    "fecha del fallo"
+  ],
+  "entidad_nombre": [
+    "entidad federativa",
+    "entidad"
+  ],
+  "codigo_sai": [
+    "clave sai",
+    "codigo sai"
+  ],
+  "nombre_sai": [
+    "descripcion sai",
+    "nombre sai",
+    "descripcion de la partida especifica"
+  ]
+}</field>
+  </record>
+  <record id="tipo_archivo_detalle_rangos" model="licitacion.tipo.archivo">
+    <field name="name">Detalle con rangos min/max</field>
+    <field name="codigo">detalle_rangos</field>
+    <field name="tipo_dato">detalle_rangos</field>
+    <field name="patron_nombre">IA-*-N-*.xlsx,LA-*-N-*.xlsx</field>
+    <field name="total_columnas">8</field>
+    <field name="hojas">1</field>
+    <field name="hoja_nombre">sheet1</field>
+    <field name="fila_encabezado">1</field>
+    <field name="origen">Compras MX</field>
+    <field name="secuencia">20</field>
+    <field name="palabras_clave_deteccion">["PARTIDA ESPECIFICA", "CANTIDAD MINIMA", "CANTIDAD MAXIMA"]</field>
+    <field name="encabezados_esperados">{"cols": ["Núm.", "Partida específica", "Clave CUCoP+", "Descripción CUCoP+", "Descripción detallada", "Unidad de medida", "Cantidad mínima", "Cantidad máxima"]}</field>
+    <field name="mapeo_columnas">{
+  "numero": [
+    "num",
+    "numero",
+    "n"
+  ],
+  "partida_especifica": [
+    "partida especifica"
+  ],
+  "clave_cucop": [
+    "clave cucop"
+  ],
+  "descripcion_cucop": [
+    "descripcion cucop"
+  ],
+  "descripcion_detallada": [
+    "descripcion detallada"
+  ],
+  "unidad_medida": [
+    "unidad de medida",
+    "unidad medida"
+  ],
+  "cantidad": [
+    "cantidad solicitada",
+    "cantidad"
+  ],
+  "cantidad_min": [
+    "cantidad minima"
+  ],
+  "cantidad_max": [
+    "cantidad maxima"
+  ],
+  "identificador": [
+    "numero de procedimiento",
+    "numero procedimiento",
+    "no procedimiento",
+    "identificador",
+    "numero de identificacion"
+  ],
+  "nombre_publicado": [
+    "nombre publicado",
+    "nombre",
+    "nombre del procedimiento",
+    "descripcion del procedimiento",
+    "descripcion",
+    "titulo del procedimiento"
+  ],
+  "codigo_expediente": [
+    "codigo expediente",
+    "codigo del expediente"
+  ],
+  "unidad_codigo": [
+    "codigo unidad compradora",
+    "codigo de la unidad compradora",
+    "clave uc"
+  ],
+  "unidad_nombre": [
+    "unidad compradora",
+    "nombre de la unidad compradora"
+  ],
+  "entidad_codigo": [
+    "codigo entidad",
+    "codigo inegi",
+    "codigo entidad federativa"
+  ],
+  "estatus": [
+    "estatus",
+    "estatus portal",
+    "estatus del procedimiento",
+    "estado del procedimiento"
+  ],
+  "tipo_codigo": [
+    "tipo de contratacion",
+    "tipo contratacion"
+  ],
+  "fecha_junta_aclaraciones": [
+    "fecha de junta de aclaraciones",
+    "fecha junta aclaraciones",
+    "junta de aclaraciones"
+  ],
+  "fecha_limite_preguntas": [
+    "fecha limite preguntas",
+    "fecha limite de preguntas",
+    "limite de preguntas"
+  ],
+  "fecha_entrega_muestras": [
+    "fecha entrega muestras",
+    "fecha de entrega de muestras"
+  ],
+  "fecha_apertura": [
+    "fecha de apertura",
+    "fecha apertura",
+    "fecha de presentacion y apertura de proposiciones"
+  ],
+  "fecha_fallo": [
+    "fecha de fallo",
+    "fecha fallo",
+    "fecha del fallo"
+  ],
+  "entidad_nombre": [
+    "entidad federativa",
+    "entidad"
+  ],
+  "codigo_sai": [
+    "clave sai",
+    "codigo sai"
+  ],
+  "nombre_sai": [
+    "descripcion sai",
+    "nombre sai",
+    "descripcion de la partida especifica"
+  ]
+}</field>
+  </record>
+  <record id="tipo_archivo_detalle_bienes" model="licitacion.tipo.archivo">
+    <field name="name">Detalle partidas (bienes)</field>
+    <field name="codigo">detalle_bienes</field>
+    <field name="tipo_dato">detalle_bienes</field>
+    <field name="patron_nombre">IA-*-N-*.xlsx,LA-*-N-*.xlsx</field>
+    <field name="total_columnas">7</field>
+    <field name="hojas">1</field>
+    <field name="hoja_nombre">sheet1</field>
+    <field name="fila_encabezado">1</field>
+    <field name="origen">Compras MX</field>
+    <field name="secuencia">30</field>
+    <field name="palabras_clave_deteccion">["PARTIDA ESPECIFICA", "CLAVE CUCOP", "CANTIDAD SOLICITADA"]</field>
+    <field name="encabezados_esperados">{"cols": ["Núm.", "Partida específica", "Clave CUCoP+", "Descripción CUCoP+", "Descripción detallada", "Unidad de medida", "Cantidad solicitada"]}</field>
+    <field name="mapeo_columnas">{
+  "numero": [
+    "num",
+    "numero",
+    "n"
+  ],
+  "partida_especifica": [
+    "partida especifica"
+  ],
+  "clave_cucop": [
+    "clave cucop"
+  ],
+  "descripcion_cucop": [
+    "descripcion cucop"
+  ],
+  "descripcion_detallada": [
+    "descripcion detallada"
+  ],
+  "unidad_medida": [
+    "unidad de medida",
+    "unidad medida"
+  ],
+  "cantidad": [
+    "cantidad solicitada",
+    "cantidad"
+  ],
+  "cantidad_min": [
+    "cantidad minima"
+  ],
+  "cantidad_max": [
+    "cantidad maxima"
+  ],
+  "identificador": [
+    "numero de procedimiento",
+    "numero procedimiento",
+    "no procedimiento",
+    "identificador",
+    "numero de identificacion"
+  ],
+  "nombre_publicado": [
+    "nombre publicado",
+    "nombre",
+    "nombre del procedimiento",
+    "descripcion del procedimiento",
+    "descripcion",
+    "titulo del procedimiento"
+  ],
+  "codigo_expediente": [
+    "codigo expediente",
+    "codigo del expediente"
+  ],
+  "unidad_codigo": [
+    "codigo unidad compradora",
+    "codigo de la unidad compradora",
+    "clave uc"
+  ],
+  "unidad_nombre": [
+    "unidad compradora",
+    "nombre de la unidad compradora"
+  ],
+  "entidad_codigo": [
+    "codigo entidad",
+    "codigo inegi",
+    "codigo entidad federativa"
+  ],
+  "estatus": [
+    "estatus",
+    "estatus portal",
+    "estatus del procedimiento",
+    "estado del procedimiento"
+  ],
+  "tipo_codigo": [
+    "tipo de contratacion",
+    "tipo contratacion"
+  ],
+  "fecha_junta_aclaraciones": [
+    "fecha de junta de aclaraciones",
+    "fecha junta aclaraciones",
+    "junta de aclaraciones"
+  ],
+  "fecha_limite_preguntas": [
+    "fecha limite preguntas",
+    "fecha limite de preguntas",
+    "limite de preguntas"
+  ],
+  "fecha_entrega_muestras": [
+    "fecha entrega muestras",
+    "fecha de entrega de muestras"
+  ],
+  "fecha_apertura": [
+    "fecha de apertura",
+    "fecha apertura",
+    "fecha de presentacion y apertura de proposiciones"
+  ],
+  "fecha_fallo": [
+    "fecha de fallo",
+    "fecha fallo",
+    "fecha del fallo"
+  ],
+  "entidad_nombre": [
+    "entidad federativa",
+    "entidad"
+  ],
+  "codigo_sai": [
+    "clave sai",
+    "codigo sai"
+  ],
+  "nombre_sai": [
+    "descripcion sai",
+    "nombre sai",
+    "descripcion de la partida especifica"
+  ]
+}</field>
+  </record>
+  <record id="tipo_archivo_detalle_servicios" model="licitacion.tipo.archivo">
+    <field name="name">Detalle partidas (servicios)</field>
+    <field name="codigo">detalle_servicios</field>
+    <field name="tipo_dato">detalle_servicios</field>
+    <field name="patron_nombre">IA-*-T-*.xlsx,LA-*-T-*.xlsx</field>
+    <field name="total_columnas">6</field>
+    <field name="hojas">1</field>
+    <field name="hoja_nombre">sheet1</field>
+    <field name="fila_encabezado">1</field>
+    <field name="origen">Compras MX</field>
+    <field name="secuencia">40</field>
+    <field name="palabras_clave_deteccion">["PARTIDA ESPECIFICA", "CLAVE CUCOP", "UNIDAD DE MEDIDA"]</field>
+    <field name="encabezados_esperados">{"cols": ["Núm.", "Partida específica", "Clave CUCoP+", "Descripción CUCoP+", "Descripción detallada", "Unidad de medida"], "columnas_alternativas": [7]}</field>
+    <field name="mapeo_columnas">{
+  "numero": [
+    "num",
+    "numero",
+    "n"
+  ],
+  "partida_especifica": [
+    "partida especifica"
+  ],
+  "clave_cucop": [
+    "clave cucop"
+  ],
+  "descripcion_cucop": [
+    "descripcion cucop"
+  ],
+  "descripcion_detallada": [
+    "descripcion detallada"
+  ],
+  "unidad_medida": [
+    "unidad de medida",
+    "unidad medida"
+  ],
+  "cantidad": [
+    "cantidad solicitada",
+    "cantidad"
+  ],
+  "cantidad_min": [
+    "cantidad minima"
+  ],
+  "cantidad_max": [
+    "cantidad maxima"
+  ],
+  "identificador": [
+    "numero de procedimiento",
+    "numero procedimiento",
+    "no procedimiento",
+    "identificador",
+    "numero de identificacion"
+  ],
+  "nombre_publicado": [
+    "nombre publicado",
+    "nombre",
+    "nombre del procedimiento",
+    "descripcion del procedimiento",
+    "descripcion",
+    "titulo del procedimiento"
+  ],
+  "codigo_expediente": [
+    "codigo expediente",
+    "codigo del expediente"
+  ],
+  "unidad_codigo": [
+    "codigo unidad compradora",
+    "codigo de la unidad compradora",
+    "clave uc"
+  ],
+  "unidad_nombre": [
+    "unidad compradora",
+    "nombre de la unidad compradora"
+  ],
+  "entidad_codigo": [
+    "codigo entidad",
+    "codigo inegi",
+    "codigo entidad federativa"
+  ],
+  "estatus": [
+    "estatus",
+    "estatus portal",
+    "estatus del procedimiento",
+    "estado del procedimiento"
+  ],
+  "tipo_codigo": [
+    "tipo de contratacion",
+    "tipo contratacion"
+  ],
+  "fecha_junta_aclaraciones": [
+    "fecha de junta de aclaraciones",
+    "fecha junta aclaraciones",
+    "junta de aclaraciones"
+  ],
+  "fecha_limite_preguntas": [
+    "fecha limite preguntas",
+    "fecha limite de preguntas",
+    "limite de preguntas"
+  ],
+  "fecha_entrega_muestras": [
+    "fecha entrega muestras",
+    "fecha de entrega de muestras"
+  ],
+  "fecha_apertura": [
+    "fecha de apertura",
+    "fecha apertura",
+    "fecha de presentacion y apertura de proposiciones"
+  ],
+  "fecha_fallo": [
+    "fecha de fallo",
+    "fecha fallo",
+    "fecha del fallo"
+  ],
+  "entidad_nombre": [
+    "entidad federativa",
+    "entidad"
+  ],
+  "codigo_sai": [
+    "clave sai",
+    "codigo sai"
+  ],
+  "nombre_sai": [
+    "descripcion sai",
+    "nombre sai",
+    "descripcion de la partida especifica"
+  ]
+}</field>
+  </record>
+  <record id="tipo_archivo_catalogo_sai" model="licitacion.tipo.archivo">
+    <field name="name">Catálogo SAI maestro</field>
+    <field name="codigo">catalogo_sai</field>
+    <field name="tipo_dato">catalogo</field>
+    <field name="patron_nombre">Libro1.xlsx</field>
+    <field name="total_columnas">10</field>
+    <field name="hojas">1</field>
+    <field name="hoja_nombre">sheet1</field>
+    <field name="fila_encabezado">1</field>
+    <field name="origen">Compras MX</field>
+    <field name="secuencia">50</field>
+    <field name="palabras_clave_deteccion">[]</field>
+    <field name="encabezados_esperados">{"cols": []}</field>
+    <field name="mapeo_columnas">{
+  "numero": [
+    "num",
+    "numero",
+    "n"
+  ],
+  "partida_especifica": [
+    "partida especifica"
+  ],
+  "clave_cucop": [
+    "clave cucop"
+  ],
+  "descripcion_cucop": [
+    "descripcion cucop"
+  ],
+  "descripcion_detallada": [
+    "descripcion detallada"
+  ],
+  "unidad_medida": [
+    "unidad de medida",
+    "unidad medida"
+  ],
+  "cantidad": [
+    "cantidad solicitada",
+    "cantidad"
+  ],
+  "cantidad_min": [
+    "cantidad minima"
+  ],
+  "cantidad_max": [
+    "cantidad maxima"
+  ],
+  "identificador": [
+    "numero de procedimiento",
+    "numero procedimiento",
+    "no procedimiento",
+    "identificador",
+    "numero de identificacion"
+  ],
+  "nombre_publicado": [
+    "nombre publicado",
+    "nombre",
+    "nombre del procedimiento",
+    "descripcion del procedimiento",
+    "descripcion",
+    "titulo del procedimiento"
+  ],
+  "codigo_expediente": [
+    "codigo expediente",
+    "codigo del expediente"
+  ],
+  "unidad_codigo": [
+    "codigo unidad compradora",
+    "codigo de la unidad compradora",
+    "clave uc"
+  ],
+  "unidad_nombre": [
+    "unidad compradora",
+    "nombre de la unidad compradora"
+  ],
+  "entidad_codigo": [
+    "codigo entidad",
+    "codigo inegi",
+    "codigo entidad federativa"
+  ],
+  "estatus": [
+    "estatus",
+    "estatus portal",
+    "estatus del procedimiento",
+    "estado del procedimiento"
+  ],
+  "tipo_codigo": [
+    "tipo de contratacion",
+    "tipo contratacion"
+  ],
+  "fecha_junta_aclaraciones": [
+    "fecha de junta de aclaraciones",
+    "fecha junta aclaraciones",
+    "junta de aclaraciones"
+  ],
+  "fecha_limite_preguntas": [
+    "fecha limite preguntas",
+    "fecha limite de preguntas",
+    "limite de preguntas"
+  ],
+  "fecha_entrega_muestras": [
+    "fecha entrega muestras",
+    "fecha de entrega de muestras"
+  ],
+  "fecha_apertura": [
+    "fecha de apertura",
+    "fecha apertura",
+    "fecha de presentacion y apertura de proposiciones"
+  ],
+  "fecha_fallo": [
+    "fecha de fallo",
+    "fecha fallo",
+    "fecha del fallo"
+  ],
+  "entidad_nombre": [
+    "entidad federativa",
+    "entidad"
+  ],
+  "codigo_sai": [
+    "clave sai",
+    "codigo sai"
+  ],
+  "nombre_sai": [
+    "descripcion sai",
+    "nombre sai",
+    "descripcion de la partida especifica"
+  ]
+}</field>
+  </record>
+  <record id="tipo_archivo_anexo_tecnico" model="licitacion.tipo.archivo">
+    <field name="name">Anexo técnico</field>
+    <field name="codigo">anexo_tecnico</field>
+    <field name="tipo_dato">anexo</field>
+    <field name="patron_nombre">apendice 1.xlsx,*anexo*.xlsx</field>
+    <field name="total_columnas">25</field>
+    <field name="hojas">1</field>
+    <field name="hoja_nombre">Anexo 1</field>
+    <field name="fila_encabezado">5</field>
+    <field name="origen">Compras MX</field>
+    <field name="secuencia">60</field>
+    <field name="palabras_clave_deteccion">[]</field>
+    <field name="encabezados_esperados">{"cols": []}</field>
+    <field name="mapeo_columnas">{
+  "numero": [
+    "num",
+    "numero",
+    "n"
+  ],
+  "partida_especifica": [
+    "partida especifica"
+  ],
+  "clave_cucop": [
+    "clave cucop"
+  ],
+  "descripcion_cucop": [
+    "descripcion cucop"
+  ],
+  "descripcion_detallada": [
+    "descripcion detallada"
+  ],
+  "unidad_medida": [
+    "unidad de medida",
+    "unidad medida"
+  ],
+  "cantidad": [
+    "cantidad solicitada",
+    "cantidad"
+  ],
+  "cantidad_min": [
+    "cantidad minima"
+  ],
+  "cantidad_max": [
+    "cantidad maxima"
+  ],
+  "identificador": [
+    "numero de procedimiento",
+    "numero procedimiento",
+    "no procedimiento",
+    "identificador",
+    "numero de identificacion"
+  ],
+  "nombre_publicado": [
+    "nombre publicado",
+    "nombre",
+    "nombre del procedimiento",
+    "descripcion del procedimiento",
+    "descripcion",
+    "titulo del procedimiento"
+  ],
+  "codigo_expediente": [
+    "codigo expediente",
+    "codigo del expediente"
+  ],
+  "unidad_codigo": [
+    "codigo unidad compradora",
+    "codigo de la unidad compradora",
+    "clave uc"
+  ],
+  "unidad_nombre": [
+    "unidad compradora",
+    "nombre de la unidad compradora"
+  ],
+  "entidad_codigo": [
+    "codigo entidad",
+    "codigo inegi",
+    "codigo entidad federativa"
+  ],
+  "estatus": [
+    "estatus",
+    "estatus portal",
+    "estatus del procedimiento",
+    "estado del procedimiento"
+  ],
+  "tipo_codigo": [
+    "tipo de contratacion",
+    "tipo contratacion"
+  ],
+  "fecha_junta_aclaraciones": [
+    "fecha de junta de aclaraciones",
+    "fecha junta aclaraciones",
+    "junta de aclaraciones"
+  ],
+  "fecha_limite_preguntas": [
+    "fecha limite preguntas",
+    "fecha limite de preguntas",
+    "limite de preguntas"
+  ],
+  "fecha_entrega_muestras": [
+    "fecha entrega muestras",
+    "fecha de entrega de muestras"
+  ],
+  "fecha_apertura": [
+    "fecha de apertura",
+    "fecha apertura",
+    "fecha de presentacion y apertura de proposiciones"
+  ],
+  "fecha_fallo": [
+    "fecha de fallo",
+    "fecha fallo",
+    "fecha del fallo"
+  ],
+  "entidad_nombre": [
+    "entidad federativa",
+    "entidad"
+  ],
+  "codigo_sai": [
+    "clave sai",
+    "codigo sai"
+  ],
+  "nombre_sai": [
+    "descripcion sai",
+    "nombre sai",
+    "descripcion de la partida especifica"
+  ]
+}</field>
+  </record>
+  <record id="prefijo_la" model="licitacion.tipo.procedimiento">
+    <field name="prefijo">LA</field>
+    <field name="descripcion">Por definir por cliente</field>
+  </record>
+  <record id="prefijo_ia" model="licitacion.tipo.procedimiento">
+    <field name="prefijo">IA</field>
+    <field name="descripcion">Por definir por cliente</field>
+  </record>
+  <record id="prefijo_li" model="licitacion.tipo.procedimiento">
+    <field name="prefijo">LI</field>
+    <field name="descripcion">Por definir por cliente</field>
+  </record>
+  <record id="prefijo_lo" model="licitacion.tipo.procedimiento">
+    <field name="prefijo">LO</field>
+    <field name="descripcion">Por definir por cliente</field>
+  </record>
+  <record id="caracter_n" model="licitacion.caracter.procedimiento">
+    <field name="clave">N</field>
+    <field name="descripcion">Por definir por cliente</field>
+  </record>
+  <record id="caracter_i" model="licitacion.caracter.procedimiento">
+    <field name="clave">I</field>
+    <field name="descripcion">Por definir por cliente</field>
+  </record>
+  <record id="caracter_t" model="licitacion.caracter.procedimiento">
+    <field name="clave">T</field>
+    <field name="descripcion">Por definir por cliente</field>
+  </record>
+</odoo>

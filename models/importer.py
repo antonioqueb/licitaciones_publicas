@@ -6,23 +6,42 @@ from odoo import fields
 from odoo.exceptions import AccessError, UserError
 
 from ..parser import (WorkbookReader, ImportValidationError, PARTIDA_FIELDS, DATE_FIELDS,
-                      business_key, diff_rows, digest, norm)
+                      business_key, diff_rows, digest, norm, identifier_parts)
 from .common import IMPORT_TOKEN, FLOW_TOKEN, require_companies
 
 
 class LicitacionImporter:
     def __init__(self, env, binary_data, filename, tz_name='America/Mexico_City'):
         self.env = env
+        profiles = env['licitacion.tipo.archivo'].search([('activo', '=', True)])
+        self.profiles = [rec._configuration() for rec in profiles]
         try:
-            reader = WorkbookReader(binary_data, filename, tz_name)
+            reader = WorkbookReader(binary_data, filename, tz_name, profiles=self.profiles)
             try:
                 self.tipo = reader.tipo
+                self.subtipo = reader.subtipo
+                self.config = reader.config
+                self.tipo_archivo_id = reader.config['id']
                 self.identifier = reader.detect_identifier_from_filename()
                 self.rows = reader.rows()
+                self.content_identifiers = reader.identificadores_contenido
+                if not self.identifier and len(self.content_identifiers) == 1:
+                    self.identifier = next(iter(self.content_identifiers))
             finally:
                 reader.close()
         except ImportValidationError as exc:
             raise UserError(str(exc)) from exc
+        if self.tipo == 'listado':
+            entities = {norm(e.name): e.code for e in env['licitacion.entidad.federativa'].search([])}
+            for row in self.rows:
+                name = row.pop('entidad_nombre', '')
+                if name:
+                    entity_code = entities.get(norm(name))
+                    if not entity_code:
+                        raise UserError('Entidad federativa no reconocida en catálogo: %s.' % name)
+                    if row.get('entidad_codigo') and row['entidad_codigo'] != entity_code:
+                        raise UserError('Nombre y código de entidad no coinciden: %s.' % name)
+                    row['entidad_codigo'] = entity_code
 
     @classmethod
     def for_carga(cls, carga):
@@ -65,6 +84,8 @@ class LicitacionImporter:
             raise UserError('Active exactamente las empresas usadas al preparar esta carga.')
         if self.tipo != carga.tipo_detectado:
             raise UserError('El archivo no coincide con el tipo detectado.')
+        if self.tipo == 'catalogo':
+            return self._catalog_diff(carga)
         if self.tipo == 'detalle' and not carga.procedimiento_id:
             raise UserError('Asigne el detalle a un procedimiento existente.')
         previous = self._previous(carga)
@@ -104,17 +125,48 @@ class LicitacionImporter:
             for entry in entries:
                 entry['record_id'] = versions.get(entry['key'], {}).get('id', False)
         touched = set(keys) | set(previous_keys)
+        congruencia = self._congruencia(carga)
         fingerprint = digest({'diff': diff, 'versions': {k: v for k, v in versions.items() if k in touched},
                               'previous_id': previous.id, 'scope': carga.scope_key, 'snapshot': carga.fecha_snapshot,
                               'assignment_note': carga.nota_asignacion, 'procedure': carga.procedimiento_id.id,
-                              'congruencia': self._congruencia(carga)})
+                              'congruencia': congruencia, 'configuration': self.profiles,
+                              'catalogs': self._catalog_state()})
         return {'diff': diff, 'fingerprint': fingerprint, 'present_keys': keys,
-                'previous_id': previous.id, 'congruencia': self._congruencia(carga)}
+                'previous_id': previous.id, 'congruencia': congruencia}
+
+    def _catalog_state(self):
+        return {
+            'prefijos': [(r.prefijo, r.activo) for r in self.env['licitacion.tipo.procedimiento'].search([])],
+            'caracteres': self.env['licitacion.caracter.procedimiento'].search([]).mapped('clave'),
+            'sai': [(r.code, r.active, sorted(r.cucop_ids.filtered('active').mapped('code')))
+                    for r in self.env['licitacion.clave.sai'].with_context(active_test=False).search([
+                        ('code', 'in', list({row.get('partida_especifica') for row in self.rows if row.get('partida_especifica')}))])],
+        }
+
+    def _identifier_issues(self, identifier, target=None):
+        if not identifier:
+            return []
+        parts = identifier_parts(identifier)
+        tests = [('prefijo_identificador', 'licitacion.tipo.procedimiento', 'prefijo', parts['tipo_procedimiento'], [('activo', '=', True)]),
+                 ('caracter_identificador', 'licitacion.caracter.procedimiento', 'clave', parts['caracter'], [])]
+        issues = []
+        for field, model, key, value, domain in tests:
+            if not self.env[model].search_count([(key, '=', value), *domain]):
+                issues.append({'campo': field, 'target_identificador': target or identifier,
+                    'identificador_observado': identifier, 'valor_esperado': 'Identificador existente en catálogo del cliente',
+                    'valor_encontrado': value, 'antes_json': False, 'despues_json': value, 'severidad': 'bloqueante'})
+        return issues
 
     def _congruencia(self, carga):
         issues = []
         if self.tipo == 'listado':
             for row in self.rows:
+                identifier_issues = self._identifier_issues(row['identificador'])
+                issues.extend(identifier_issues)
+                if identifier_issues:
+                    # Las demás incongruencias necesitan un procedimiento válido.
+                    # Se evaluarán al reimportar después de completar el catálogo.
+                    continue
                 if not row.get('entidad_codigo'):
                     continue
                 unit = self.env['licitacion.unidad.compradora'].search([('code', '=', row['unidad_codigo'])], limit=1)
@@ -125,16 +177,29 @@ class LicitacionImporter:
                         'antes_json': unit.entidad_id.id, 'despues_json': entity.id, 'severidad': 'bloqueante'})
             return issues
         procedure = carga.procedimiento_id
-        if procedure.tipo_contratacion_id.code == 'SER' and sum(norm(r['unidad_medida']) in ('pieza', 'par', 'caja') for r in self.rows) > 1:
-            adq = self.env.ref('licitaciones_publicas.tipo_adq')
-            issues.append({'campo': 'tipo_contratacion_id', 'valor_esperado': procedure.tipo_contratacion_id.name,
-                           'valor_encontrado': 'Múltiples partidas con unidades de bienes',
-                           'antes_json': procedure.tipo_contratacion_id.id, 'despues_json': adq.id,
-                           'severidad': 'bloqueante'})
+        for identifier in sorted({procedure.identificador, self.identifier, *self.content_identifiers} - {None, False}):
+            issues.extend(self._identifier_issues(identifier, procedure.identificador))
+        sai = {r.code: r for r in self.env['licitacion.clave.sai'].search([
+            ('code', 'in', list({r['partida_especifica'] for r in self.rows}))])}
+        for row in self.rows:
+            entry = sai.get(row['partida_especifica'])
+            issue = {'target_partida_hash': business_key(row), 'antes_json': False,
+                     'despues_json': row['partida_especifica'], 'valor_encontrado': row['partida_especifica']}
+            if not entry:
+                issues.append(dict(issue, campo='partida_sai', severidad='bloqueante',
+                                   valor_esperado='Partida específica existente en catálogo SAI'))
+            elif row['clave_cucop'] not in entry.cucop_ids.filtered('active').mapped('code'):
+                issues.append(dict(issue, campo='cucop_sai', severidad='advertencia',
+                    valor_esperado=', '.join(entry.cucop_ids.filtered('active').mapped('code')),
+                    valor_encontrado=row['clave_cucop'], despues_json=row['clave_cucop']))
+        if self.content_identifiers and (self.content_identifiers != {self.identifier} or self.content_identifiers != {procedure.identificador}):
+            issues.append({'campo': 'asignacion_archivo', 'valor_esperado': procedure.identificador,
+                'valor_encontrado': 'Nombre: %s; contenido: %s' % (self.identifier or 'Sin identificador', ', '.join(sorted(self.content_identifiers))),
+                'antes_json': False, 'despues_json': False, 'severidad': 'advertencia'})
         if self.identifier and self.identifier != procedure.identificador:
             issues.append({'campo': 'asignacion_archivo', 'valor_esperado': procedure.identificador,
                            'valor_encontrado': self.identifier, 'antes_json': False, 'despues_json': False,
-                           'severidad': 'bloqueante'})
+                           'severidad': 'advertencia'})
         return issues
 
     def _catalog(self, model, domain, values):
@@ -176,6 +241,8 @@ class LicitacionImporter:
         return vals
 
     def commit(self, prepared, carga):
+        if self.tipo == 'catalogo':
+            return self._commit_catalog(prepared, carga)
         env = self.env(context=dict(self.env.context, _lp_import=IMPORT_TOKEN, _lp_flow=FLOW_TOKEN))
         procedure_model = env['licitacion.procedimiento']
         model = procedure_model if self.tipo == 'listado' else env['licitacion.partida']
@@ -187,6 +254,10 @@ class LicitacionImporter:
                 rec = model.browse(entry['record_id']) if entry['record_id'] else model
                 if self.tipo == 'listado':
                     source_row = next(r for r in self.rows if r['identificador'] == row['identificador'])
+                    if self._identifier_issues(row['identificador']):
+                        # La fila permanece en la carga y en la incidencia. No
+                        # inventar un procedimiento con identificadores inválidos.
+                        continue
                     vals = self._procedure_values(source_row)
                     if not rec:
                         rec = model.create(dict(vals, primer_snapshot_id=carga.id))
@@ -226,13 +297,72 @@ class LicitacionImporter:
         for issue in prepared['congruencia']:
             issue = dict(issue)
             identifier = issue.pop('target_identificador', None)
+            partida_hash = issue.pop('target_partida_hash', None)
             procedure = procedure_model.search([('identificador', '=', identifier)], limit=1) if identifier else carga.procedimiento_id
+            partida = env['licitacion.partida'].search([('procedimiento_id', '=', procedure.id), ('clave_hash', '=', partida_hash)], limit=1) if partida_hash else env['licitacion.partida']
             existing = env['licitacion.incidencia'].search([
                 ('procedimiento_id', '=', procedure.id), ('campo', '=', issue['campo']),
+                ('partida_id', '=', partida.id), ('carga_id', '=', carga.id),
+                ('identificador_observado', '=', issue.get('identificador_observado', False)),
                 ('state', '=', 'abierta')], limit=1)
             if not existing:
                 env['licitacion.incidencia'].create(dict(issue, carga_id=carga.id,
-                    procedimiento_id=procedure.id, origen='procedimiento'))
+                    procedimiento_id=procedure.id, partida_id=partida.id,
+                    origen='partida' if partida else 'procedimiento' if procedure else 'carga'))
+
+    def _catalog_diff(self, carga):
+        if not self.env.su and not self.env.user.has_group('licitaciones_publicas.group_licitaciones_manager'):
+            raise AccessError('Solo un administrador puede cargar el catálogo SAI.')
+        if self.env['licitacion.carga'].sudo().search_count([
+                ('tipo_detectado', '=', 'catalogo'), ('state', '=', 'confirmada'),
+                ('id', '!=', carga.id), ('fecha_snapshot', '>', carga.fecha_snapshot)]):
+            raise UserError('El catálogo SAI ya tiene una carga confirmada más reciente.')
+        grouped = {}
+        for row in self.rows:
+            entry = grouped.setdefault(row['code'], {'code': row['code'], 'name': row['name'], 'cucop': {}})
+            if entry['name'] != row['name']:
+                raise UserError('Una partida SAI tiene descripciones contradictorias: %s.' % row['code'])
+            entry['cucop'][row['cucop_code']] = row['cucop_name']
+        current = {}
+        records = self.env['licitacion.clave.sai'].with_context(active_test=False).search([('code', 'in', list(grouped))])
+        for rec in records:
+            current[rec.code] = {'code': rec.code, 'name': rec.name,
+                                'cucop': {c.code: c.name for c in rec.cucop_ids}}
+        diff = diff_rows(list(grouped.values()), current, key='code')
+        for entries in diff.values():
+            for entry in entries:
+                entry['record_id'] = records.filtered(lambda r: r.code == entry['key']).id
+        return {'diff': diff, 'present_keys': list(grouped), 'congruencia': [],
+                'fingerprint': digest({'diff': diff, 'configuration': self.profiles,
+                                      'scope': carga.scope_key, 'snapshot': carga.fecha_snapshot,
+                                      'versions': [(r.id, r.write_date, r.active, [(c.id, c.write_date, c.active) for c in r.cucop_ids]) for r in records]})}
+
+    def _commit_catalog(self, prepared, carga):
+        from odoo import Command
+        if not self.env.su and not self.env.user.has_group('licitaciones_publicas.group_licitaciones_manager'):
+            raise AccessError('Solo un administrador puede cargar el catálogo SAI.')
+        for category in ('nuevos', 'cambios', 'sin_cambios'):
+            for entry in prepared['diff'][category]:
+                row = entry['values']
+                cucops = self.env['licitacion.clave.cucop']
+                for code, name in row['cucop'].items():
+                    rec = cucops.with_context(active_test=False).search([('code', '=', code)], limit=1)
+                    if not rec:
+                        rec = cucops.create({'code': code, 'name': name})
+                    elif not rec.active:
+                        raise UserError('Reactive la clave CUCoP+ antes de importarla: %s.' % code)
+                    elif rec.name != name:
+                        rec.write({'name': name})
+                    cucops |= rec
+                model = self.env['licitacion.clave.sai']
+                rec = model.browse(entry['record_id'])
+                vals = {'code': row['code'], 'name': row['name'], 'cucop_ids': [Command.set(cucops.ids)]}
+                if not rec:
+                    model.create(vals)
+                elif not rec.active:
+                    raise UserError('Reactive la partida SAI antes de importarla: %s.' % row['code'])
+                elif category == 'cambios':
+                    rec.write(vals)
 
     def _snapshot(self, env, carga, procedure, payload, present):
         env['licitacion.aparicion'].create({'carga_id': carga.id, 'procedimiento_id': procedure.id,

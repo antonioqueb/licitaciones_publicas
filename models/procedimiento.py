@@ -24,8 +24,11 @@ class Procedimiento(models.Model):
     nombre_publicado = fields.Char(string='Nombre publicado', required=True, tracking=True)
     codigo_expediente = fields.Char(string='Código del expediente')
     tipo_procedimiento = fields.Char(string='Tipo', compute='_compute_identifier', store=True)
-    caracter = fields.Selection([('N', 'Nacional'), ('I', 'Internacional'), ('T', 'TLC')], string='Carácter', compute='_compute_identifier', store=True)
-    ordenamiento_legal = fields.Selection([('LAASSP', 'LAASSP'), ('LOPSRM', 'LOPSRM')], compute='_compute_identifier', store=True)
+    caracter = fields.Char(string='Clave de carácter', compute='_compute_identifier', store=True)
+    ordenamiento_legal = fields.Char(string='Ordenamiento previo', readonly=True,
+        help='Dato histórico conservado. El identificador ya no determina un ordenamiento legal.')
+    tipo_procedimiento_id = fields.Many2one('licitacion.tipo.procedimiento', string='Prefijo de catálogo', compute='_compute_catalogos')
+    caracter_procedimiento_id = fields.Many2one('licitacion.caracter.procedimiento', string='Carácter de catálogo', compute='_compute_catalogos')
     consecutivo = fields.Char(compute='_compute_identifier', store=True)
     ejercicio = fields.Char(compute='_compute_identifier', store=True)
     unidad_compradora_id = fields.Many2one('licitacion.unidad.compradora', string='Unidad compradora', required=True, ondelete='restrict', tracking=True)
@@ -69,17 +72,27 @@ class Procedimiento(models.Model):
             try:
                 values = identifier_parts(rec.identificador)
             except ImportValidationError:
-                values = {k: False for k in ('tipo_procedimiento', 'caracter', 'ordenamiento_legal', 'consecutivo', 'ejercicio')}
+                values = {k: False for k in ('tipo_procedimiento', 'caracter', 'consecutivo', 'ejercicio')}
             for key, value in values.items():
                 rec[key] = value
+
+    @api.depends('tipo_procedimiento', 'caracter')
+    def _compute_catalogos(self):
+        for rec in self:
+            rec.tipo_procedimiento_id = self.env['licitacion.tipo.procedimiento'].search([('prefijo', '=', rec.tipo_procedimiento)], limit=1)
+            rec.caracter_procedimiento_id = self.env['licitacion.caracter.procedimiento'].search([('clave', '=', rec.caracter)], limit=1)
 
     @api.constrains('identificador')
     def _check_identifier(self):
         for rec in self:
             try:
-                identifier_parts(rec.identificador)
+                parts = identifier_parts(rec.identificador)
             except ImportValidationError as exc:
                 raise ValidationError(str(exc)) from exc
+            if not self.env['licitacion.tipo.procedimiento'].search_count([('prefijo', '=', parts['tipo_procedimiento']), ('activo', '=', True)]):
+                raise ValidationError('El prefijo debe existir y estar activo en el catálogo del cliente.')
+            if not self.env['licitacion.caracter.procedimiento'].search_count([('clave', '=', parts['caracter'])]):
+                raise ValidationError('La clave de carácter debe existir en el catálogo del cliente.')
 
     @api.depends('partida_ids.company_ids')
     def _compute_companies(self):

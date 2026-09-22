@@ -1,5 +1,6 @@
 from . import common
 from . import catalogos
+from . import tipo_archivo
 from . import procedimiento
 from . import partida
 from . import expediente

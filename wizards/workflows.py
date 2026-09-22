@@ -25,6 +25,7 @@ class CargaWizard(models.TransientModel):
                          help='Nombre estable de los filtros usados en el portal. Solo se comparan cargas del mismo alcance.')
     zona_horaria = fields.Char(string='Zona horaria del Excel', default='America/Mexico_City', required=True)
     tipo_detectado = fields.Char(string='Tipo detectado', readonly=True)
+    detalle_borrador = fields.Boolean(string='Detalle en borrador', readonly=True)
 
     def _reader(self):
         self.ensure_one()
@@ -36,9 +37,12 @@ class CargaWizard(models.TransientModel):
 
     @api.onchange('archivo', 'archivo_nombre')
     def _onchange_file(self):
+        self.tipo_detectado = False
+        self.detalle_borrador = False
         if self.archivo and self.archivo_nombre:
             reader = self._reader()
-            self.tipo_detectado = 'Detalle de partidas' if reader.tipo == 'detalle' else 'Listado de procedimientos'
+            self.tipo_detectado = reader.config['name']
+            self.detalle_borrador = reader.tipo == 'detalle'
 
     def action_preview(self):
         self.ensure_one()
@@ -53,6 +57,8 @@ class CargaWizard(models.TransientModel):
         vals = {'archivo': self.archivo, 'archivo_nombre': self.archivo_nombre, 'fecha_snapshot': self.fecha_snapshot,
                 'origen_portal': self.origen_portal, 'alcance': self.alcance.strip(), 'zona_horaria': self.zona_horaria,
                 'tipo_detectado': reader.tipo, 'procedimiento_id': procedure.id,
+                'tipo_archivo_id': reader.tipo_archivo_id, 'subtipo_detectado': reader.subtipo,
+                'configuracion_snapshot': reader.config,
                 'company_ids': [Command.set(self.env.companies.ids)]}
         if not vals['alcance']:
             raise ValidationError('Indique un alcance de búsqueda.')
@@ -86,6 +92,7 @@ class Preview(models.TransientModel):
 
     carga_id = fields.Many2one('licitacion.carga', string='Carga', required=True, readonly=True)
     resumen = fields.Char(related='carga_id.resumen')
+    detalle_borrador = fields.Boolean(related='carga_id.detalle_borrador')
     line_ids = fields.One2many('licitacion.preview.line', 'wizard_id', readonly=True)
     nuevos_ids = fields.One2many('licitacion.preview.line', 'wizard_id', domain=[('categoria', '=', 'nuevos')], readonly=True)
     cambios_ids = fields.One2many('licitacion.preview.line', 'wizard_id', domain=[('categoria', '=', 'cambios')], readonly=True)
@@ -106,10 +113,18 @@ class Preview(models.TransientModel):
                 for entry in entries:
                     data = entry['values']
                     vals['line_ids'].append(Command.create({'categoria': category,
-                        'clave': data.get('identificador') or '%s · %s' % (data.get('numero', ''), data.get('clave_cucop', '')),
-                        'descripcion': data.get('nombre_publicado') or data.get('descripcion_detallada', ''),
+                        'clave': data.get('identificador') or data.get('code') or '%s · %s' % (data.get('numero', ''), data.get('clave_cucop', '')),
+                        'descripcion': data.get('nombre_publicado') or data.get('name') or data.get('descripcion_detallada', ''),
                         'detalle': json.dumps(entry.get('diff') or data, ensure_ascii=False, indent=2)}))
-            vals['advertencias'] = '\n'.join('%s: %s → %s' % (i['campo'], i['valor_esperado'], i['valor_encontrado']) for i in prepared.get('congruencia', []))
+            messages = []
+            for issue in prepared.get('congruencia', []):
+                message = '[%s] %s · %s: %s → %s' % (
+                    issue['severidad'].capitalize(), issue.get('identificador_observado') or issue.get('target_identificador') or carga.procedimiento_id.identificador,
+                    issue['campo'], issue['valor_esperado'], issue['valor_encontrado'])
+                if carga.tipo_detectado == 'listado' and issue['campo'] in ('prefijo_identificador', 'caracter_identificador'):
+                    message += '. Esta fila no se creará ni actualizará hasta completar el catálogo y volver a importar.'
+                messages.append(message)
+            vals['advertencias'] = '\n'.join(messages)
         return super().create(vals_list)
 
     def action_confirm(self):

@@ -6,7 +6,7 @@ from odoo.tests import tagged
 
 from .common import LicitacionCase, excel
 
-LIST_HEADERS = ['Número de procedimiento', 'Nombre', 'Unidad compradora', 'Estatus', 'Tipo de contratación', 'Fecha de junta de aclaraciones']
+LIST_HEADERS = ['Número de identificación', 'Nombre', 'Unidad compradora', 'Estatus', 'Tipo de contratación', 'Fecha de junta de aclaraciones', 'Entidad federativa', 'Código expediente', 'Fecha de apertura', 'Fecha de fallo', 'Código unidad compradora', 'Fecha entrega muestras', 'Fecha límite preguntas']
 
 
 @tagged('post_install', '-at_install')
@@ -87,26 +87,25 @@ class TestImport(LicitacionCase):
         with self.assertRaises(AccessError):
             carga.aparicion_ids.write({'presente': False})
 
-    def test_service_congruence_and_resolution(self):
+    def test_sai_congruence_and_resolution(self):
         p = self.procedure(tipo='ser')
-        rows = [[n, 21601, f'21601-{n:04}', 'FIBRA', f'Fibra {n}', 'PIEZA', 10] for n in range(1, 27)]
+        rows = [[1, 29801, '29801-0001', 'REFACCIÓN', 'Refacción de prueba', 'PIEZA', 10]]
+        self.env.ref('licitaciones_publicas.tipo_archivo_detalle_bienes').fila_encabezado = 2
         carga = self.preview(p, rows=rows, blanks=1)
         carga._confirm()
-        self.assertEqual(len(p.partida_ids), 26)
-        self.assertEqual(len(p.incidencia_ids), 1)
         incident = p.incidencia_ids
+        self.assertEqual(incident.campo, 'partida_sai')
         self.assertEqual(incident.severidad, 'bloqueante')
-        self.assertEqual(p.tipo_contratacion_id.code, 'SER')
         with self.assertRaises(ValidationError):
             incident._resolve('resolver', '')
+        with self.assertRaises(UserError):
+            incident._resolve('resolver', 'Todavía no existe la partida.')
+        self.env['licitacion.clave.sai'].create({'code': '29801', 'name': 'Partida de prueba'})
         form = self.modal_form(incident.action_resolver())
-        self.assertEqual(form.incidencia_id, incident)
-        with self.assertRaises(AssertionError):
-            form.save()
-        form.nota = 'La convocatoria corresponde a bienes; validado por el responsable.'
+        form.nota = 'Se completó el catálogo SAI.'
         form.save().action_apply()
-        self.assertEqual(p.tipo_contratacion_id.code, 'ADQ')
         self.assertEqual(incident.state, 'resuelta')
+        self.assertEqual(p.tipo_contratacion_id.code, 'SER')
 
     def test_gone_preserves_assignments(self):
         p = self.procedure()
@@ -127,6 +126,7 @@ class TestImport(LicitacionCase):
     def test_ignore_incident_requires_note_in_form(self):
         p = self.procedure(tipo='ser')
         rows = [[n, 21601, f'21601-{n:04}', 'FIBRA', f'Fibra {n}', 'PIEZA', 10] for n in (1, 2)]
+        rows[0][1] = 29801
         self.preview(p, rows=rows)._confirm()
         incident = p.incidencia_ids
         form = self.modal_form(incident.action_ignorar())

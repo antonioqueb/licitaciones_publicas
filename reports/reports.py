@@ -65,7 +65,7 @@ class PartidasXlsx(models.AbstractModel):
         rows = []
         for p in docs.partida_ids:
             rows.append([p.procedimiento_id.identificador, p.numero, p.partida_especifica, p.clave_cucop,
-                p.descripcion_cucop, p.descripcion_detallada, p.unidad_medida, p.cantidad, p.cantidad_min, p.cantidad_max,
+                p.descripcion_cucop, p.descripcion_detallada, p.unidad_medida, "Pendiente" if p.cantidad_pendiente else p.cantidad, p.cantidad_min, p.cantidad_max,
                 p.empresa_principal_id.name, ', '.join((p.company_ids - p.empresa_principal_id).mapped('name')),
                 ', '.join(p.partida_proveedor_ids.partner_id.mapped('name')), dict(p._fields['participacion'].selection)[p.participacion],
                 p.motivo_descarte_id.name, p.sigue_apareciendo])

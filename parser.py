@@ -6,6 +6,7 @@ import math
 import re
 import unicodedata
 import zipfile
+from fnmatch import fnmatchcase
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -16,13 +17,13 @@ class ImportValidationError(ValueError):
     pass
 
 
-IDENTIFIER = re.compile(r'(?<![A-Z0-9])((?:LA|IA|AD|LO|IO|LI)-\d+-[A-Z0-9]+-[A-Z0-9]+-[NIT]-\d+-\d{4})(?![A-Z0-9])', re.I)
+IDENTIFIER = re.compile(r'(?<![A-Z0-9])([A-Z]{2}-\d+-[A-Z0-9]+-[A-Z0-9]+-[A-Z]-\d+-\d{4})(?![A-Z0-9])', re.I)
 DATE_FIELDS = ('fecha_junta_aclaraciones', 'fecha_limite_preguntas',
                'fecha_entrega_muestras', 'fecha_apertura', 'fecha_fallo')
 PARTIDA_FIELDS = ('numero', 'partida_especifica', 'clave_cucop', 'descripcion_cucop',
-                  'descripcion_detallada', 'unidad_medida', 'cantidad', 'cantidad_min', 'cantidad_max')
+                  'descripcion_detallada', 'unidad_medida', 'cantidad', 'cantidad_min', 'cantidad_max', 'cantidad_pendiente')
 PORTAL_FIELDS = ('identificador', 'nombre_publicado', 'codigo_expediente',
-                 'unidad_codigo', 'unidad_nombre', 'entidad_codigo', 'estatus', 'tipo_codigo') + DATE_FIELDS
+                 'unidad_codigo', 'unidad_nombre', 'entidad_codigo', 'entidad_nombre', 'estatus', 'tipo_codigo') + DATE_FIELDS
 
 
 def norm(value):
@@ -30,31 +31,67 @@ def norm(value):
     return re.sub(r'[^a-z0-9]+', ' ', ''.join(c for c in text if not unicodedata.combining(c)).lower()).strip()
 
 
-ALIASES = {
-    'numero': ('num', 'numero', 'n'),
-    'partida_especifica': ('partida especifica',),
-    'clave_cucop': ('clave cucop',),
-    'descripcion_cucop': ('descripcion cucop',),
-    'descripcion_detallada': ('descripcion detallada',),
-    'unidad_medida': ('unidad de medida', 'unidad medida'),
-    'cantidad': ('cantidad solicitada', 'cantidad'),
-    'cantidad_min': ('cantidad minima',),
-    'cantidad_max': ('cantidad maxima',),
-    'identificador': ('numero de procedimiento', 'numero procedimiento', 'no procedimiento', 'identificador'),
-    'nombre_publicado': ('nombre publicado', 'nombre', 'nombre del procedimiento', 'descripcion del procedimiento'),
-    'codigo_expediente': ('codigo expediente', 'codigo del expediente'),
-    'unidad_codigo': ('codigo unidad compradora', 'codigo de la unidad compradora', 'clave uc'),
-    'unidad_nombre': ('unidad compradora', 'nombre de la unidad compradora'),
-    'entidad_codigo': ('codigo entidad', 'codigo inegi', 'codigo entidad federativa'),
-    'estatus': ('estatus', 'estatus portal', 'estatus del procedimiento', 'estado del procedimiento'),
-    'tipo_codigo': ('tipo de contratacion', 'tipo contratacion'),
-    'fecha_junta_aclaraciones': ('fecha de junta de aclaraciones', 'fecha junta aclaraciones', 'junta de aclaraciones'),
-    'fecha_limite_preguntas': ('fecha limite preguntas', 'fecha limite de preguntas', 'limite de preguntas'),
-    'fecha_entrega_muestras': ('fecha entrega muestras', 'fecha de entrega de muestras'),
-    'fecha_apertura': ('fecha de apertura', 'fecha apertura', 'fecha de presentacion y apertura de proposiciones'),
-    'fecha_fallo': ('fecha de fallo', 'fecha fallo', 'fecha del fallo'),
-}
-HEADER_MAP = {norm(alias): key for key, aliases in ALIASES.items() for alias in aliases}
+# Los nombres y alias de columnas pertenecen al catálogo, no al lector.
+MAPPABLE_FIELDS = set(PORTAL_FIELDS) | set(PARTIDA_FIELDS) | {'codigo_sai', 'nombre_sai'}
+DETAIL_TYPES = {'detalle_bienes', 'detalle_servicios', 'detalle_rangos'}
+
+
+def header_norm(value):
+    """Comparación Unicode sin acentos, signos, diferencias de caja o espacios."""
+    return norm(value).upper()
+
+
+def filename_norm(value):
+    text = unicodedata.normalize('NFKD', str(value or ''))
+    return re.sub(r'\s+', ' ', ''.join(c for c in text if not unicodedata.combining(c))).upper().strip()
+
+
+def profile_config(values):
+    """Validate user configuration once; never eval Python supplied in a field."""
+    result = dict(values)
+    for key in ('hojas', 'fila_encabezado', 'total_columnas'):
+        value = result.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ImportValidationError('%s debe ser un entero positivo.' % key)
+    def decode(key, default):
+        raw = result.get(key)
+        try:
+            return json.loads(raw) if isinstance(raw, str) and raw.strip() else (raw or default)
+        except (ValueError, TypeError) as exc:
+            raise ImportValidationError('%s debe contener JSON válido.' % key) from exc
+    words = decode('palabras_clave_deteccion', [])
+    expected = decode('encabezados_esperados', {'cols': []})
+    mapping = decode('mapeo_columnas', {})
+    if not isinstance(words, list) or any(not isinstance(w, str) or not header_norm(w) for w in words):
+        raise ImportValidationError('Palabras clave debe ser un array JSON de textos no vacíos.')
+    if not isinstance(expected, dict) or set(expected) - {'cols', 'columnas_alternativas'}:
+        raise ImportValidationError('Encabezados esperados debe contener cols y, opcionalmente, columnas_alternativas.')
+    cols = expected.get('cols', [])
+    if not isinstance(cols, list) or any(not isinstance(c, str) or not header_norm(c) for c in cols):
+        raise ImportValidationError('cols debe ser un array de encabezados no vacíos.')
+    if len({header_norm(c) for c in cols}) != len(cols):
+        raise ImportValidationError('Hay encabezados esperados duplicados o equivalentes.')
+    alternatives = expected.get('columnas_alternativas', [])
+    if not isinstance(alternatives, list) or any(type(n) is not int or n < 1 for n in alternatives):
+        raise ImportValidationError('columnas_alternativas debe contener enteros positivos.')
+    if not isinstance(mapping, dict) or set(mapping) - MAPPABLE_FIELDS:
+        raise ImportValidationError('El mapeo contiene campos destino no permitidos.')
+    header_map = {}
+    for field, aliases in mapping.items():
+        if not isinstance(aliases, list) or any(not isinstance(a, str) or not header_norm(a) for a in aliases):
+            raise ImportValidationError('Cada campo del mapeo debe contener un array de nombres de columna.')
+        for alias in aliases:
+            key = header_norm(alias)
+            if key in header_map and header_map[key] != field:
+                raise ImportValidationError('Un mismo encabezado no puede mapearse a dos campos: %s.' % alias)
+            header_map[key] = field
+    if not words and not (result.get('patron_nombre') or '').strip():
+        raise ImportValidationError('Indique palabras clave o al menos un patrón de nombre.')
+    result.update(palabras_clave_deteccion=words, encabezados_esperados=expected,
+                  mapeo_columnas=mapping, header_map=header_map)
+    return result
+
+
 DETAIL_REQUIRED = {'numero', 'partida_especifica', 'clave_cucop', 'descripcion_detallada', 'unidad_medida'}
 LIST_REQUIRED = {'identificador', 'nombre_publicado', 'unidad_nombre', 'estatus', 'tipo_codigo'}
 TYPE_CODES = {'adq': 'ADQ', 'adquisiciones': 'ADQ', 'adquisicion': 'ADQ',
@@ -69,7 +106,7 @@ def identifier_parts(identifier):
         raise ImportValidationError('Identificador de procedimiento inválido: %s' % identifier)
     parts = match.group(1).upper().split('-')
     return dict(tipo_procedimiento=parts[0], caracter=parts[-3], consecutivo=parts[-2],
-                ejercicio=parts[-1], ordenamiento_legal='LOPSRM' if parts[0] in ('LO', 'IO') else 'LAASSP')
+                ejercicio=parts[-1])
 
 
 def business_key(row):
@@ -156,7 +193,7 @@ class WorkbookReader:
     MAX_UNCOMPRESSED = 150 * 1024 * 1024
     MAX_ROWS = 50000
 
-    def __init__(self, binary_data, filename, tz_name='America/Mexico_City'):
+    def __init__(self, binary_data, filename, tz_name='America/Mexico_City', *, profiles=None):
         self.filename = filename
         self.tz_name = tz_name
         try:
@@ -172,30 +209,76 @@ class WorkbookReader:
             self.wb = openpyxl.load_workbook(io.BytesIO(binary_data), read_only=True, data_only=True)
         except (zipfile.BadZipFile, OSError, KeyError, ValueError) as exc:
             raise ImportValidationError('El archivo no es un Excel válido: %s' % exc) from exc
-        self.ws = self.wb.worksheets[0]
-        self.headers = []
-        self.header_row = None
-        self.tipo = None
-        for idx, row in enumerate(self.ws.iter_rows(max_row=5, values_only=True), 1):
-            headers = [HEADER_MAP.get(norm(v)) for v in row]
-            names = set(headers) - {None}
-            if DETAIL_REQUIRED <= names:
-                self.tipo = 'detalle'
-            elif LIST_REQUIRED <= names:
-                self.tipo = 'listado'
-            else:
+        self.identificadores_contenido = set()
+        try:
+            self._detect(profiles or [])
+        except Exception:
+            self.close()
+            raise
+
+    def _detect(self, profiles):
+        errors = []
+        candidates = []
+        for raw in profiles:
+            if not raw.get('activo', True):
                 continue
-            if len(names) != len([h for h in headers if h]):
-                self.close()
-                raise ImportValidationError('Hay encabezados duplicados o equivalentes en el archivo.')
-            self.headers, self.header_row = headers, idx
-            break
-        if not self.tipo:
-            self.close()
-            raise ImportValidationError('No se detectó un encabezado válido en las primeras 5 filas.')
-        if self.tipo == 'detalle' and not ('cantidad' in self.headers or {'cantidad_min', 'cantidad_max'} <= set(self.headers)):
-            self.close()
-            raise ImportValidationError('Se requiere Cantidad solicitada o Cantidad mínima y Cantidad máxima.')
+            config = profile_config(raw)
+            sheet_name = config.get('hoja_nombre')
+            sheets = [ws for ws in self.wb.worksheets if not sheet_name or header_norm(ws.title) == header_norm(sheet_name)]
+            patterns = [filename_norm(p) for p in (config.get('patron_nombre') or '').split(',') if p.strip()]
+            filename_match = any(fnmatchcase(filename_norm(self.filename), p) for p in patterns)
+            if not sheets:
+                if filename_match:
+                    errors.append('%s: no existe la hoja %s.' % (config['name'], sheet_name))
+                continue
+            ws = sheets[0]
+            row = next(ws.iter_rows(min_row=config['fila_encabezado'], max_row=config['fila_encabezado'], values_only=True), ())
+            values = list(row)
+            while values and values[-1] in (None, ''):
+                values.pop()
+            names = {header_norm(v) for v in values if v is not None}
+            words = {header_norm(w) for w in config['palabras_clave_deteccion']}
+            keyword_match = bool(words) and words <= names
+            if not keyword_match and not filename_match:
+                continue
+            headers = [config['header_map'].get(header_norm(v)) for v in values]
+            mapped = set(headers) - {None}
+            kind = config['tipo_dato']
+            if kind in DETAIL_TYPES:
+                subtype = ('detalle_rangos' if {'cantidad_min', 'cantidad_max'} <= mapped else
+                           'detalle_bienes' if 'cantidad' in mapped else 'detalle_servicios')
+                if subtype != kind:
+                    continue
+            expected = {header_norm(v) for v in config['encabezados_esperados'].get('cols', [])}
+            match = 100 if not expected else 100 * len(expected & names) / len(expected)
+            problem = None
+            if len(self.wb.worksheets) != config['hojas']:
+                problem = 'se esperaban %s hojas; se encontraron %s' % (config['hojas'], len(self.wb.worksheets))
+            elif len(values) not in [config['total_columnas'], *config['encabezados_esperados'].get('columnas_alternativas', [])]:
+                problem = 'se esperaban %s columnas; se encontraron %s' % (config['total_columnas'], len(values))
+            elif match < 70:
+                problem = 'coincidencia de encabezados %.1f%%; se requiere al menos 70%%' % match
+            elif words and not keyword_match:
+                problem = 'faltan palabras clave del encabezado configurado'
+            elif len(mapped) != len([h for h in headers if h]):
+                problem = 'hay encabezados duplicados o equivalentes'
+            else:
+                required = DETAIL_REQUIRED if kind in DETAIL_TYPES else LIST_REQUIRED if kind == 'listado' else set()
+                missing = required - mapped
+                if missing:
+                    problem = 'configure el mapeo de columnas para: %s' % ', '.join(sorted(missing))
+                if kind == 'catalogo' and not ({'clave_cucop'} <= mapped and ('codigo_sai' in mapped or 'partida_especifica' in mapped)):
+                    problem = 'configure el mapeo de partida específica/clave SAI y clave CUCoP+'
+            if problem:
+                errors.append('%s: %s.' % (config['name'], problem))
+                continue
+            candidates.append((config.get('secuencia', 10), not filename_match, config['codigo'], config, ws, headers, match))
+        if not candidates:
+            raise ImportValidationError('No se detectó un tipo de archivo activo compatible. ' + ' '.join(errors))
+        _, _, _, self.config, self.ws, self.headers, self.header_match = min(candidates, key=lambda c: c[:3])
+        self.header_row = self.config['fila_encabezado']
+        self.subtipo = self.config['tipo_dato']
+        self.tipo = 'detalle' if self.subtipo in DETAIL_TYPES else self.subtipo
 
     def close(self):
         self.wb.close()
@@ -214,8 +297,13 @@ class WorkbookReader:
                 continue
             values = {k: v for k, v in zip(self.headers, row) if k}
             try:
-                parsed = self._partida(values) if self.tipo == 'detalle' else self._procedimiento(values)
-                key = business_key(parsed) if self.tipo == 'detalle' else parsed['identificador']
+                if self.tipo == 'anexo':
+                    raise ImportValidationError('Anexo reconocido. Su procesamiento no está definido en DEV-02.')
+                parsed = self._partida(values) if self.tipo == 'detalle' else self._sai(values) if self.tipo == 'catalogo' else self._procedimiento(values)
+                if self.tipo == 'detalle' and values.get('identificador'):
+                    identifier_parts(values['identificador'])
+                    self.identificadores_contenido.add(code(values['identificador']).upper())
+                key = business_key(parsed) if self.tipo == 'detalle' else (parsed['code'], parsed['cucop_code']) if self.tipo == 'catalogo' else parsed['identificador']
                 if key in seen:
                     if seen[key] != parsed:
                         raise ImportValidationError('La misma clave de negocio tiene datos contradictorios.')
@@ -232,7 +320,7 @@ class WorkbookReader:
         n = number(data.get('numero'), required=True)
         if n != int(n) or n <= 0:
             raise ImportValidationError('Núm. debe ser un entero positivo.')
-        row = {k: code(data.get(k)) for k in PARTIDA_FIELDS if k not in ('numero', 'cantidad', 'cantidad_min', 'cantidad_max')}
+        row = {k: code(data.get(k)) for k in PARTIDA_FIELDS if k not in ('numero', 'cantidad', 'cantidad_min', 'cantidad_max', 'cantidad_pendiente')}
         # Deliberately do not strip descriptions: exact business key, including line breaks.
         for k in ('descripcion_cucop', 'descripcion_detallada'):
             row[k] = str(data[k]) if data.get(k) is not None else ''
@@ -241,7 +329,9 @@ class WorkbookReader:
         row.update(numero=int(n), cantidad_min=number(data.get('cantidad_min')), cantidad_max=number(data.get('cantidad_max')))
         if 'cantidad_max' in self.headers and row['cantidad_min'] > row['cantidad_max']:
             raise ImportValidationError('Cantidad mínima mayor que la máxima.')
-        row['cantidad'] = number(data.get('cantidad') if data.get('cantidad') not in (None, '') else data.get('cantidad_max'), required=True)
+        row['cantidad_pendiente'] = self.subtipo == 'detalle_servicios'
+        row['cantidad'] = (0.0 if row['cantidad_pendiente'] else
+                           number(data.get('cantidad') if data.get('cantidad') not in (None, '') else data.get('cantidad_max'), required=True))
         return row
 
     def _procedimiento(self, data):
@@ -266,3 +356,11 @@ class WorkbookReader:
         # Only present columns may update dates; omitted headers do not erase dates.
         row.update({k: portal_datetime(data.get(k), self.tz_name) for k in DATE_FIELDS if k in self.headers})
         return row
+
+    def _sai(self, data):
+        partida = code(data.get('codigo_sai') or data.get('partida_especifica'))
+        cucop = code(data.get('clave_cucop'))
+        if not partida or not cucop:
+            raise ImportValidationError('El catálogo SAI requiere partida específica y clave CUCoP+.')
+        return {'code': partida, 'name': code(data.get('nombre_sai')) or partida,
+                'cucop_code': cucop, 'cucop_name': code(data.get('descripcion_cucop')) or cucop}

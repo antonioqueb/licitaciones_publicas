@@ -1,6 +1,6 @@
 {
     'name': 'Gestión de Licitaciones Públicas',
-    'version': '19.0.1.0.1',
+    'version': '19.0.2.0.0',
     'category': 'Sales/Public Procurement',
     'summary': 'Detección, criba y expedientes por empresa',
     'author': 'Alphaqueb Consulting SAS',
@@ -11,13 +11,13 @@
     'external_dependencies': {'python': ['openpyxl', 'xlsxwriter']},
     'data': [
         'security/licitaciones_security.xml', 'security/ir.model.access.csv',
-        'data/sequences.xml', 'data/catalog_data.xml',
+        'data/sequences.xml', 'data/catalog_data.xml', 'data/tipos_archivo.xml',
         'reports/reports.xml', 'data/mail_templates.xml', 'data/cron.xml',
         'wizards/wizard_views.xml',
         'views/procedimiento_views.xml', 'views/partida_views.xml',
         'views/expediente_views.xml', 'views/carga_views.xml',
         'views/incidencia_views.xml', 'views/agenda_views.xml',
-        'views/catalog_views.xml', 'views/settings_views.xml', 'views/menus.xml',
+        'views/catalog_views.xml', 'views/settings_views.xml', 'views/menus.xml', 'views/tipo_archivo_views.xml',
     ],
     'demo': ['demo/demo_data.xml'],
     'assets': {'web.assets_backend': [

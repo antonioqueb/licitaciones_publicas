@@ -6,6 +6,7 @@ from odoo.exceptions import AccessError, UserError
 from ..parser import digest
 from .common import IMPORT_TOKEN, FLOW_TOKEN, imported, internal, lock, modal
 from .importer import LicitacionImporter
+from .tipo_archivo import TIPOS_DATO
 
 
 class Carga(models.Model):
@@ -22,7 +23,11 @@ class Carga(models.Model):
     alcance = fields.Char(string='Alcance de la búsqueda', default='general', required=True,
                          help='Use el mismo nombre solo para exportaciones con los mismos filtros del portal.')
     zona_horaria = fields.Char(string='Zona horaria del Excel', default='America/Mexico_City', required=True)
-    tipo_detectado = fields.Selection([('listado', 'Listado de procedimientos'), ('detalle', 'Detalle de partidas')], string='Tipo detectado', readonly=True, required=True)
+    tipo_detectado = fields.Selection([('listado', 'Listado de procedimientos'), ('detalle', 'Detalle de partidas'), ('catalogo', 'Catálogo SAI'), ('anexo', 'Anexo')], string='Tipo detectado', readonly=True, required=True)
+    tipo_archivo_id = fields.Many2one('licitacion.tipo.archivo', string='Formato detectado', readonly=True, ondelete='restrict')
+    subtipo_detectado = fields.Selection(TIPOS_DATO, string='Subtipo', readonly=True)
+    configuracion_snapshot = fields.Json(string='Configuración utilizada', readonly=True)
+    detalle_borrador = fields.Boolean(string='Detalle en borrador', compute='_compute_borrador')
     procedimiento_id = fields.Many2one('licitacion.procedimiento', string='Procedimiento', ondelete='restrict')
     nota_asignacion = fields.Text(string='Justificación de asignación manual')
     company_ids = fields.Many2many('res.company', string='Empresas del alcance', required=True, default=lambda s: s.env.companies)
@@ -46,6 +51,11 @@ class Carga(models.Model):
     resumen = fields.Char(compute='_compute_resumen', string='Resumen')
     aparicion_ids = fields.One2many('licitacion.aparicion', 'carga_id', string='Apariciones')
     incidencia_ids = fields.One2many('licitacion.incidencia', 'carga_id', string='Incidencias')
+
+    @api.depends('tipo_detectado')
+    def _compute_borrador(self):
+        for rec in self:
+            rec.detalle_borrador = rec.tipo_detectado == 'detalle'
 
     @api.depends('origen_portal', 'alcance', 'tipo_detectado', 'procedimiento_id', 'company_ids')
     def _compute_scope(self):
@@ -82,9 +92,12 @@ class Carga(models.Model):
         importer = LicitacionImporter.for_carga(self)
         prepared = importer.compute_diff(self)
         prefix = 'procedimientos' if self.tipo_detectado == 'listado' else 'partidas'
-        vals = {'prepared_json': prepared, 'fingerprint': prepared['fingerprint'], 'state': 'previsualizada'}
+        vals = {'prepared_json': prepared, 'fingerprint': prepared['fingerprint'], 'state': 'previsualizada',
+                'tipo_archivo_id': importer.tipo_archivo_id, 'subtipo_detectado': importer.subtipo,
+                'configuracion_snapshot': importer.config}
         for category, entries in prepared['diff'].items():
-            vals[prefix + '_' + ('nuevos' if category == 'nuevos' else category)] = len(entries)
+            if self.tipo_detectado in ('listado', 'detalle'):
+                vals[prefix + '_' + ('nuevos' if category == 'nuevos' else category)] = len(entries)
         # Singular model names use *_nuevas for partidas.
         if 'partidas_nuevos' in vals:
             vals['partidas_nuevas'] = vals.pop('partidas_nuevos')
@@ -112,7 +125,7 @@ class Carga(models.Model):
         if self.state != 'previsualizada':
             raise UserError('Primero previsualice la carga.')
         # Serializes this scope without taking record locks on other companies.
-        key = int(self.scope_key[:15], 16)
+        key = int(digest('catalogo-sai-global')[:15], 16) if self.tipo_detectado == 'catalogo' else int(self.scope_key[:15], 16)
         self.env.cr.execute('SELECT pg_advisory_xact_lock(%s)', [key])
         importer = LicitacionImporter.for_carga(self)
         fresh = importer.compute_diff(self)

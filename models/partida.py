@@ -20,6 +20,8 @@ class Partida(models.Model):
     descripcion_detallada = fields.Text(string='Descripción detallada', required=True)
     unidad_medida = fields.Char(string='Unidad de medida', required=True)
     cantidad = fields.Float(string='Cantidad', required=True)
+    cantidad_pendiente = fields.Boolean(string='Cantidad pendiente', readonly=True, default=False,
+        help='Detalle de servicios sin cantidad: BORRADOR - Pendiente validación cliente. Cero no representa una cantidad contratada.')
     cantidad_min = fields.Float(string='Cantidad mínima')
     cantidad_max = fields.Float(string='Cantidad máxima')
     clave_hash = fields.Char(compute='_compute_key', store=True, index=True)

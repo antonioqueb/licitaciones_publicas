@@ -1,0 +1,47 @@
+<odoo>
+  <record id="view_tipo_archivo_list" model="ir.ui.view">
+    <field name="name">licitacion.tipo.archivo.list</field>
+    <field name="model">licitacion.tipo.archivo</field>
+    <field name="arch" type="xml">
+      <list decoration-muted="not activo">
+        <field name="secuencia" widget="handle"/><field name="codigo"/><field name="name"/>
+        <field name="tipo_dato"/><field name="patron_nombre"/><field name="hoja_nombre"/>
+        <field name="fila_encabezado"/><field name="total_columnas"/><field name="activo"/>
+      </list>
+    </field>
+  </record>
+  <record id="view_tipo_archivo_form" model="ir.ui.view">
+    <field name="name">licitacion.tipo.archivo.form</field>
+    <field name="model">licitacion.tipo.archivo</field>
+    <field name="arch" type="xml">
+      <form><sheet>
+        <field name="detalle_borrador" invisible="1"/>
+        <div class="alert alert-warning" role="alert" invisible="not detalle_borrador">BORRADOR - Pendiente validación cliente</div>
+        <group><group><field name="name"/><field name="codigo"/><field name="tipo_dato"/><field name="origen"/><field name="activo"/></group>
+          <group><field name="secuencia"/><field name="patron_nombre"/><field name="hojas"/><field name="hoja_nombre"/><field name="fila_encabezado"/><field name="total_columnas"/></group></group>
+        <notebook>
+          <page string="Detección y validación"><group><field name="palabras_clave_deteccion"/><field name="encabezados_esperados"/></group>
+            <p>Coincidencia mínima del encabezado: 70%. Los patrones pueden separarse con comas. La prioridad menor se evalúa primero entre formatos compatibles.</p>
+          </page>
+          <page string="Mapeo de columnas"><field name="mapeo_columnas"/>
+            <p>Formato: campo destino seguido de una lista de encabezados. Ejemplo: {"identificador": ["NÚMERO DE IDENTIFICACIÓN"]}. No se ejecuta código de este campo.</p>
+          </page>
+        </notebook>
+      </sheet></form>
+    </field>
+  </record>
+  <record id="action_tipo_archivo" model="ir.actions.act_window"><field name="name">Tipos de archivo</field><field name="res_model">licitacion.tipo.archivo</field><field name="view_mode">list,form</field></record>
+  <menuitem id="menu_tipo_archivo" name="Tipos de archivo" parent="menu_config" action="action_tipo_archivo" sequence="10"/>
+  <record id="view_tipo_procedimiento_list" model="ir.ui.view"><field name="name">licitacion.tipo.procedimiento.list</field><field name="model">licitacion.tipo.procedimiento</field><field name="arch" type="xml"><list><field name="prefijo"/><field name="descripcion"/><field name="activo"/></list></field></record>
+  <record id="view_tipo_procedimiento_form" model="ir.ui.view"><field name="name">licitacion.tipo.procedimiento.form</field><field name="model">licitacion.tipo.procedimiento</field><field name="arch" type="xml"><form><sheet><group><field name="prefijo"/><field name="descripcion"/><field name="activo"/></group><p>La descripción y el significado los define el cliente.</p></sheet></form></field></record>
+  <record id="action_tipo_procedimiento" model="ir.actions.act_window"><field name="name">Prefijos de procedimiento</field><field name="res_model">licitacion.tipo.procedimiento</field><field name="view_mode">list,form</field></record>
+  <menuitem id="menu_tipo_procedimiento" name="Prefijos de procedimiento" parent="menu_config" action="action_tipo_procedimiento" sequence="11"/>
+  <record id="view_caracter_procedimiento_list" model="ir.ui.view"><field name="name">licitacion.caracter.procedimiento.list</field><field name="model">licitacion.caracter.procedimiento</field><field name="arch" type="xml"><list><field name="clave"/><field name="descripcion"/></list></field></record>
+  <record id="view_caracter_procedimiento_form" model="ir.ui.view"><field name="name">licitacion.caracter.procedimiento.form</field><field name="model">licitacion.caracter.procedimiento</field><field name="arch" type="xml"><form><sheet><group><field name="clave"/><field name="descripcion"/></group><p>Clave del quinto segmento, tercero desde la derecha. Su significado lo define el cliente.</p></sheet></form></field></record>
+  <record id="action_caracter_procedimiento" model="ir.actions.act_window"><field name="name">Claves de carácter</field><field name="res_model">licitacion.caracter.procedimiento</field><field name="view_mode">list,form</field></record>
+  <menuitem id="menu_caracter_procedimiento" name="Claves de carácter" parent="menu_config" action="action_caracter_procedimiento" sequence="12"/>
+  <record id="view_clave_sai_list" model="ir.ui.view"><field name="name">licitacion.clave.sai.list</field><field name="model">licitacion.clave.sai</field><field name="arch" type="xml"><list><field name="code"/><field name="name"/><field name="cucop_ids" widget="many2many_tags"/><field name="active"/></list></field></record>
+  <record id="view_clave_sai_form" model="ir.ui.view"><field name="name">licitacion.clave.sai.form</field><field name="model">licitacion.clave.sai</field><field name="arch" type="xml"><form><sheet><group><field name="code"/><field name="name"/><field name="cucop_ids" widget="many2many_tags"/><field name="active"/></group><p>Catálogo pendiente de entrega por el cliente. Se carga por separado, con previsualización. No se deducen relaciones a partir del prefijo CUCoP+.</p></sheet></form></field></record>
+  <record id="action_clave_sai" model="ir.actions.act_window"><field name="name">Partidas SAI</field><field name="res_model">licitacion.clave.sai</field><field name="view_mode">list,form</field></record>
+  <menuitem id="menu_clave_sai" name="Partidas SAI" parent="menu_config" action="action_clave_sai" sequence="13"/>
+</odoo>
