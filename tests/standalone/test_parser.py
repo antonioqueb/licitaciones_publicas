@@ -217,7 +217,7 @@ class TestParser(unittest.TestCase):
         headers = ['NUMERO_PROCEDIMIENTO', 'Nombre publicado', 'Unidad compradora', 'Estatus', 'Tipo de contratación', 'Fecha de apertura']
         data = workbook(headers, [[IDENTIFIER, 'Licitación de limpieza', 'UC México', 'Vigente', 'Adquisiciones', '21/09/2026 09:00']])
         row = read(data)[0]
-        self.assertEqual(row['tipo_codigo'], 'ADQ')
+        self.assertEqual(row['tipo_codigo'], 'Adquisiciones')
         self.assertEqual(row['unidad_codigo'], '050GYR032')
         self.assertEqual(row['fecha_apertura'], '2026-09-21 15:00:00')
         self.assertNotIn('fecha_fallo', row)
@@ -225,8 +225,9 @@ class TestParser(unittest.TestCase):
 
     def test_listado_unknown_type(self):
         headers = ['Número de procedimiento', 'Nombre', 'Unidad compradora', 'Estatus', 'Tipo de contratación']
-        with self.assertRaisesRegex(parser.ImportValidationError, 'Tipo de contratación'):
-            read(workbook(headers, [[IDENTIFIER, 'X', 'UC', 'Nuevo', 'desconocido']]))
+        row = read(workbook(headers, [[IDENTIFIER, 'X', 'UC', 'Nuevo', 'desconocido']]))[0]
+        self.assertEqual(row['tipo_codigo'], 'desconocido')
+        self.assertEqual(row['_fila'], 2)
 
     def test_business_key_delimiter_safe(self):
         first = {'partida_especifica': 'a|b', 'clave_cucop': 'c', 'descripcion_detallada': 'd'}

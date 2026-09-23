@@ -43,7 +43,7 @@ class TestDynamicProfiles(unittest.TestCase):
         self.assertEqual(row['fecha_junta_aclaraciones'], '2026-09-23 16:00:00')
         self.assertEqual(row['fecha_apertura'], '2026-09-25 16:00:00')
         self.assertEqual(row['tipo_publicacion'], 'Invitación')
-        self.assertEqual(row['tipo_codigo'], 'ADQ')
+        self.assertEqual(row['tipo_codigo'], 'Adquisiciones')
         self.assertEqual(row['codigo_expediente'], 'E-2026-00101658')
         self.assertEqual(row['unidad_nombre'], 'Unidad de prueba')
         self.assertEqual(row['entidad_nombre'], 'Zacatecas')
@@ -79,7 +79,7 @@ class TestDynamicProfiles(unittest.TestCase):
                 row = list(LIST_ROW)
                 row[9] = label
                 parsed = self.reader(workbook(LIST_HEADERS, [row])).rows()[0]
-                self.assertEqual(parsed['tipo_codigo'], expected)
+                self.assertEqual(parsed['tipo_codigo'], label.strip())
 
     def test_official_listing_work_related_services_on_excel_row_15(self):
         rows = []
@@ -92,7 +92,7 @@ class TestDynamicProfiles(unittest.TestCase):
         content = workbook(LIST_HEADERS, rows)
         parsed = self.reader(content).rows()
         self.assertEqual(len(parsed), 14)
-        self.assertEqual(parsed[-1]['tipo_codigo'], 'SRO')
+        self.assertEqual(parsed[-1]['tipo_codigo'], 'SERVICIOS RELACIONADOS CON LA OBRA')
         diff = parser.diff_rows(self.reader(content).rows(), {r['identificador']: r for r in parsed})
         self.assertEqual([len(diff[k]) for k in ('nuevos', 'cambios', 'sin_cambios', 'gone')], [0, 0, 14, 0])
 

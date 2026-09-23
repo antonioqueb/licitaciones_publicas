@@ -275,8 +275,8 @@ class Preview(models.TransientModel):
                 message = '[%s] %s · %s: %s → %s' % (
                     issue['severidad'].capitalize(), issue.get('identificador_observado') or issue.get('target_identificador') or carga.procedimiento_id.identificador,
                     issue['campo'], issue['valor_esperado'], issue['valor_encontrado'])
-                if carga.tipo_detectado == 'listado' and issue['campo'] in ('prefijo_identificador', 'caracter_identificador'):
-                    message += '. Esta fila no se creará ni actualizará hasta completar el catálogo y volver a importar.'
+                if issue.get('es_valor_no_reconocido'):
+                    message += '. La fila se importará y quedará una advertencia para corrección del administrador.'
                 messages.append(message)
             vals['advertencias'] = '\n'.join(messages)
         return super().create(vals_list)
@@ -377,10 +377,24 @@ class Resolver(models.TransientModel):
     incidencia_id = fields.Many2one('licitacion.incidencia', string='Incidencia', required=True, readonly=True)
     decision = fields.Selection([('resolver', 'Resolver y aplicar valor propuesto'), ('ignorar', 'Ignorar y conservar valor actual')], string='Decisión', required=True)
     nota = fields.Text(string='Justificación', required=True)
+    es_catalogo = fields.Boolean(related='incidencia_id.es_valor_no_reconocido')
+    campo = fields.Char(related='incidencia_id.campo')
+    valor_encontrado = fields.Text(related='incidencia_id.valor_encontrado')
+    entidad_federativa_id = fields.Many2one('licitacion.entidad.federativa', string='Entidad oficial')
+    estatus_portal_id = fields.Many2one('licitacion.estatus.portal', string='Estatus oficial', domain="[('estado', '!=', 'inactivo')]")
+    tipo_contratacion_id = fields.Many2one('licitacion.tipo.contratacion', string='Contratación oficial')
+    tipo_procedimiento_id = fields.Many2one('licitacion.tipo.procedimiento', string='Prefijo oficial', domain="[('activo', '=', True)]")
+    caracter_procedimiento_id = fields.Many2one('licitacion.caracter.procedimiento', string='Carácter oficial')
+    unidad_compradora_id = fields.Many2one('licitacion.unidad.compradora', string='Unidad oficial')
+    guardar_alias = fields.Boolean(string='Guardar el valor encontrado como alias de la entidad', default=True)
 
     def action_apply(self):
         self.ensure_one()
-        self.incidencia_id._resolve(self.decision, self.nota)
+        record = self[self.campo + '_id'] if self.es_catalogo and self.campo in {
+            'entidad_federativa', 'estatus_portal', 'tipo_contratacion', 'tipo_procedimiento',
+            'caracter_procedimiento', 'unidad_compradora'} else None
+        self.incidencia_id._resolve(self.decision, self.nota, record,
+            self.guardar_alias and self.campo == 'entidad_federativa' and self.es_catalogo)
         return close()
 
 

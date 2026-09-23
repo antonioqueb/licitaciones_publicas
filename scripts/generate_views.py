@@ -64,7 +64,15 @@ def generate():
     w += view('view_preview', 'licitacion.preview.wizard', preview)
     w += wizard('criba.wizard', 'Aplicar decisión', '<group>' + field('procedimiento_ids', 'widget="many2many_tags"') + fields('es_lote decision') + field('motivo_id', "invisible=\"decision not in ('descartar','no_viable')\" required=\"decision in ('descartar','no_viable')\"") + field('nota') + '</group>', 'action_apply')
     w += wizard('generar.expedientes.wizard', 'Generar expedientes', '<group>' + fields('procedimiento_id resumen') + '</group><p>Un expediente por empresa y una carta por proveedor. Se conservarán los existentes.</p>', 'action_generate')
-    w += wizard('resolver.incidencia.wizard', 'Aplicar resolución', '<group>' + fields('incidencia_id decision nota') + '</group>', 'action_apply')
+    correction = '<group>' + fields('incidencia_id decision') + field('es_catalogo', 'invisible="1"') + field('campo', 'invisible="1"')
+    correction += field('valor_encontrado', 'invisible="not es_catalogo"')
+    for key in ('entidad_federativa', 'estatus_portal', 'tipo_contratacion', 'tipo_procedimiento', 'caracter_procedimiento', 'unidad_compradora'):
+        condition = f"es_catalogo and decision == 'resolver' and campo == '{key}'"
+        correction += field(key + '_id', f'invisible="not ({condition})" required="{condition}" options="{{\'no_create\': True}}"')
+    correction += field('guardar_alias', "invisible=\"not es_catalogo or decision != 'resolver' or campo != 'entidad_federativa'\"")
+    correction += '<div class="alert alert-info" invisible="not es_catalogo or decision != \'resolver\' or campo == \'entidad_federativa\'">Revise el catálogo y sus nombres alternativos, si los admite. Esta corrección asigna el registro seleccionado sin agregar alias automáticamente.</div>'
+    correction += field('nota') + '</group>'
+    w += wizard('resolver.incidencia.wizard', 'Aplicar resolución', correction, 'action_apply')
     for what in ('empresas', 'proveedores'):
         w += wizard(f'propagar.{what}.wizard', f'Propagar {what}', '<group>' + field('partida_ids', 'widget="many2many_tags"') + field('fuente_id', "domain=\"[('id','in',partida_ids)]\"") + '</group><p>La selección fuente reemplazará las asignaciones de las otras partidas.</p>', 'action_apply')
     save('wizards/wizard_views.xml', w)
@@ -114,7 +122,7 @@ Este binario tiene <field name="coincidencias_count" nolabel="1"/> cargas confir
     save('views/carga_views.xml', c)
 
     i = view('view_incidencia_list', 'licitacion.incidencia', '<list create="0" decoration-danger="severidad == \'bloqueante\' and state == \'abierta\'">' + fields('procedimiento_id identificador_observado origen campo valor_esperado valor_encontrado severidad state create_date') + '</list>')
-    i += view('view_incidencia_form', 'licitacion.incidencia', '<form create="0" edit="0"><header>' + button('action_resolver', 'Resolver', "invisible=\"state != 'abierta'\" class=\"btn-primary\"") + button('action_ignorar', 'Ignorar', "invisible=\"state != 'abierta'\"") + field('state', 'widget="statusbar"') + '</header><sheet><group>' + fields('procedimiento_id identificador_observado partida_id carga_id origen campo severidad') + '</group><group><group string="Valor actual">' + field('valor_esperado', 'nolabel="1"') + '</group><group string="Valor encontrado">' + field('valor_encontrado', 'nolabel="1"') + '</group></group><group>' + fields('nota_resolucion resuelta_por_id fecha_resolucion escalada_fecha') + '</group></sheet><chatter/></form>')
+    i += view('view_incidencia_form', 'licitacion.incidencia', '<form create="0" edit="0"><header>' + button('action_resolver', 'Resolver', "invisible=\"state != 'abierta'\" class=\"btn-primary\"") + button('action_ignorar', 'Ignorar', "invisible=\"state != 'abierta'\"") + field('state', 'widget="statusbar"') + '</header><sheet><group>' + fields('procedimiento_id identificador_observado partida_id carga_id origen campo severidad es_valor_no_reconocido detalle') + '</group><group><group string="Valor actual">' + field('valor_esperado', 'nolabel="1"') + '</group><group string="Valor encontrado">' + field('valor_encontrado', 'nolabel="1"') + '</group></group><group>' + fields('nota_resolucion resuelta_por_id fecha_resolucion escalada_fecha') + '</group></sheet><chatter/></form>')
     i += view('view_incidencia_search', 'licitacion.incidencia', '''<search><field name="procedimiento_id"/><field name="campo"/><filter name="abiertas" string="Abiertas" domain="[('state','=','abierta')]"/><filter name="bloqueantes" string="Bloqueantes" domain="[('severidad','=','bloqueante')]"/><group><filter name="por_origen" string="Origen" context="{'group_by':'origen'}"/><filter name="por_procedimiento" string="Procedimiento" context="{'group_by':'procedimiento_id'}"/></group></search>''')
     i += action('action_incidencias', 'Incidencias', 'licitacion.incidencia', extra='<field name="context">{\'search_default_abiertas\':1}</field>')
     save('views/incidencia_views.xml', i)
@@ -130,6 +138,12 @@ Este binario tiene <field name="coincidencias_count" nolabel="1"/> cargas confir
     c = ''
     for model, label, extras in catalogs:
         slug = model.replace('.', '_')
+        if model == 'entidad.federativa':
+            content = fields('codigo_in nombre nombres_alternativos activa notas procedimiento_count')
+            c += view('view_' + slug + '_list', 'licitacion.' + model, '<list create="0" delete="0">' + content + '</list>')
+            c += view('view_' + slug + '_form', 'licitacion.' + model, '<form create="0" delete="0"><sheet><group>' + content + '</group></sheet></form>')
+            c += action('action_' + slug, label, 'licitacion.' + model)
+            continue
         c += view('view_' + slug + '_list', 'licitacion.' + model, '<list>' + fields('code name ' + extras + ' active') + '</list>')
         chatter = '<chatter/>' if model == 'estatus.portal' else ''
         c += view('view_' + slug + '_form', 'licitacion.' + model, '<form><sheet><group>' + fields('code name ' + extras + ' active') + '</group></sheet>' + chatter + '</form>')

@@ -1,5 +1,9 @@
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
+
+from ..catalog_resolution import aliases
+
+MX_STATES = 'ags bc bcs camp coah col chis chih df dgo gto gro hgo jal mex mich mor nay nl oax pue qro q_roo slp sin son tab tamps tlax ver yuc zac'.split()
 
 
 class Catalogo(models.AbstractModel):
@@ -18,6 +22,41 @@ class Entidad(models.Model):
     _name = 'licitacion.entidad.federativa'
     _description = 'Entidad federativa'
     _inherit = 'licitacion.catalogo'
+    _rec_name = 'nombre'
+
+    codigo_in = fields.Char(related='code', string='Código INEGI', readonly=True, size=2)
+    estado_base_id = fields.Many2one('res.country.state', compute='_compute_estado_base', store=True, readonly=True)
+    nombre = fields.Char(related='estado_base_id.name', string='Nombre oficial Odoo', readonly=True)
+    nombres_alternativos = fields.Text(string='Nombres alternativos', help='Alias completos separados por coma.')
+    activa = fields.Boolean(related='active', string='Activa', readonly=True)
+    notas = fields.Text(string='Notas internas', readonly=True)
+    procedimiento_count = fields.Integer(compute='_compute_procedimientos', string='Procedimientos')
+
+    @api.depends('code')
+    def _compute_estado_base(self):
+        for rec in self:
+            number = int(rec.code) if (rec.code or '').isdigit() else 0
+            rec.estado_base_id = self.env.ref('base.state_mx_' + MX_STATES[number - 1], raise_if_not_found=False) if 1 <= number <= 32 else False
+
+    def _compute_procedimientos(self):
+        for rec in self:
+            rec.procedimiento_count = self.env['licitacion.procedimiento'].search_count([('entidad_id', '=', rec.id)])
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            raise AccessError('Las 32 entidades se suministran con el módulo. Solo se editan sus alias.')
+        for vals in vals_list:
+            if 'nombres_alternativos' in vals:
+                vals['nombres_alternativos'] = ', '.join(aliases(vals['nombres_alternativos']))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su and set(vals) - {'nombres_alternativos'}:
+            raise AccessError('Solo se pueden editar los nombres alternativos de una entidad.')
+        if 'nombres_alternativos' in vals:
+            vals = dict(vals, nombres_alternativos=', '.join(aliases(vals['nombres_alternativos'])))
+        return super().write(vals)
 
     @api.constrains('code')
     def _check_code(self):

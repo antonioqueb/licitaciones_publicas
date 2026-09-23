@@ -37,7 +37,7 @@ class LicitacionCase(TransactionCase):
         cucops = cls.env['licitacion.clave.cucop'].create([
             {'code': f'21601-{n:04}', 'name': f'CUCoP de prueba {n}'} for n in range(1, 51)])
         cls.env['licitacion.clave.sai'].create({'code': '21601', 'name': 'Partida SAI de prueba', 'cucop_ids': [Command.set(cucops.ids)]})
-        cls.unit = cls.env['licitacion.unidad.compradora'].create({'code': 'TEST032', 'name': 'Unidad de prueba'})
+        cls.unit = cls.env['licitacion.unidad.compradora'].search([('code', '=', '050GYR032')], limit=1) or cls.env['licitacion.unidad.compradora'].create({'code': '050GYR032', 'name': 'Unidad de prueba'})
         cls.reason = cls.env.ref('licitaciones_publicas.motivo_no_giro')
         cls.partner = cls.env['res.partner'].create({'name': 'Proveedor de prueba', 'es_proveedor_licitacion': True, 'email': 'supplier@example.invalid', 'company_id': False})
 

@@ -34,7 +34,7 @@ def generate():
             writer.writerow(['access_' + slug, name, 'model_licitacion_' + slug, 'group_licitaciones_user', *perms])
             if name in catalogs:
                 writer.writerow(['access_' + slug + '_manager', name + ' manager', 'model_licitacion_' + slug,
-                                 'group_licitaciones_manager', 1, 1, 1, 0])
+                                 'group_licitaciones_manager', 1, 1, int(name != 'entidad.federativa'), 0])
         writer.writerow(['access_archivo_huella_system', 'Control de huellas', 'model_licitacion_archivo_huella',
                          'base.group_system', 1, 0, 0, 0])
     security = '''<odoo>
@@ -47,7 +47,7 @@ def generate():
         if name in ['expediente', 'pregunta', 'costeo.linea', 'documento', 'documento.version', 'carta.apoyo', 'partida.empresa']:
             domain = "[('company_id', 'in', company_ids)]"
         elif name == 'incidencia':
-            domain = "['|', '&', ('procedimiento_id', '!=', False), '|', ('procedimiento_id.company_ids', '=', False), ('procedimiento_id.company_ids', 'in', company_ids), '&', ('procedimiento_id', '=', False), ('carga_id.company_ids', 'in', company_ids)]"
+            domain = "['&', '|', ('carga_id', '=', False), ('carga_id.company_ids', 'in', company_ids), '|', '&', ('procedimiento_id', '!=', False), '|', ('procedimiento_id.company_ids', '=', False), ('procedimiento_id.company_ids', 'in', company_ids), '&', ('procedimiento_id', '=', False), ('carga_id.company_ids', 'in', company_ids)]"
         elif name == 'carga':
             domain = "[('company_ids', 'in', company_ids)]"
         else:
@@ -63,7 +63,7 @@ def generate():
               'Tlaxcala', 'Veracruz de Ignacio de la Llave', 'Yucatán', 'Zacatecas']
     data = '<odoo noupdate="1">\n'
     for n, state in enumerate(states, 1):
-        data += record(f'entidad_{n:02}', 'licitacion.entidad.federativa', {'code': f'{n:02}', 'name': state})
+        data += record(f'entidad_{n:02}', 'licitacion.entidad.federativa', {'code': f'{n:02}', 'name': state, **({'nombres_alternativos': 'VERACRUZ, VERACRUZ DE LA LLAVE'} if n == 30 else {})})
     for code, name, key in [('ADQ', 'Adquisiciones', 'I'), ('SER', 'Servicios', 'S'), ('OBR', 'Obra pública', 'O'), ('ARR', 'Arrendamientos', 'A')]:
         data += record('tipo_' + code.lower(), 'licitacion.tipo.contratacion', {'code': code, 'name': name, 'clave_identificador': key})
     data += record('tipo_sro', 'licitacion.tipo.contratacion',

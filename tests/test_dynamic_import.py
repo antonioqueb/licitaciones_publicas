@@ -67,7 +67,7 @@ class TestDynamicImport(LicitacionCase):
         carga._confirm()
         procedure = carga.aparicion_ids.procedimiento_id
         self.assertEqual(procedure.tipo_contratacion_id, tipo)
-        self.assertEqual(carga.aparicion_ids.datos_snapshot['tipo_codigo'], 'SRO')
+        self.assertEqual(carga.aparicion_ids.datos_snapshot['tipo_codigo'], row[9])
         row[9] = '  Servicios  relacionados con la obra  '
         second = self.load([row])
         self.assertEqual((second.procedimientos_nuevos, second.procedimientos_cambios, second.procedimientos_sin_cambios), (0, 0, 1))
@@ -96,22 +96,19 @@ class TestDynamicImport(LicitacionCase):
             config.copy({'codigo': config.codigo})
         self.assertEqual(config.search([('codigo', '=', config.codigo)]), config)
 
-    def test_unknown_prefix_preserved_as_load_incident_without_procedure(self):
+    def test_unknown_prefix_preserves_procedure_with_warning(self):
         identifier = 'ZZ-50-GYR-050GYR032-N-990-2026'
         carga = self.load([self.list_row(identifier)])
         self.assertFalse(carga.incidencia_ids)
         carga._confirm()
-        self.assertFalse(self.env['licitacion.procedimiento'].search([('identificador', '=', identifier)]))
+        p = carga.aparicion_ids.procedimiento_id
+        self.assertEqual(p.identificador, identifier)
         incident = carga.incidencia_ids
-        self.assertEqual((incident.origen, incident.campo, incident.severidad), ('carga', 'prefijo_identificador', 'bloqueante'))
-        self.assertEqual(incident.identificador_observado, identifier)
+        self.assertEqual((incident.origen, incident.campo, incident.severidad), ('procedimiento', 'tipo_procedimiento', 'advertencia'))
         self.assertTrue(carga.archivo)
-        self.env['licitacion.tipo.procedimiento'].create({'prefijo': 'ZZ', 'descripcion': 'Definido por cliente'})
-        incident._resolve('resolver', 'El cliente completó el catálogo; se volverá a importar.')
-        second = self.load([self.list_row(identifier)])
-        second._confirm()
-        p = self.env['licitacion.procedimiento'].search([('identificador', '=', identifier)])
-        self.assertTrue(p)
+        prefix = self.env['licitacion.tipo.procedimiento'].create({'prefijo': 'ZZ', 'descripcion': 'Definido por cliente'})
+        incident._resolve('resolver', 'El cliente completó el catálogo.', prefix)
+        self.assertEqual(p.tipo_procedimiento_id, prefix)
         self.assertEqual(p.entidad_id.code, '32')
         self.assertFalse(p.ordenamiento_legal)
 
@@ -120,20 +117,20 @@ class TestDynamicImport(LicitacionCase):
         prefix.activo = False
         carga = self.load([self.list_row('LA-50-GYR-050GYR032-X-991-2026')])
         carga._confirm()
-        self.assertEqual(set(carga.incidencia_ids.mapped('campo')), {'prefijo_identificador', 'caracter_identificador'})
+        self.assertEqual(set(carga.incidencia_ids.mapped('campo')), {'tipo_procedimiento', 'caracter_procedimiento'})
 
     def test_pending_identifier_does_not_abort_valid_rows_or_create_orphan_entity_conflict(self):
-        self.env['licitacion.unidad.compradora'].create({
-            'code': '050GYR032', 'name': 'Unidad registrada',
+        self.unit.write({
+            'name': 'Unidad registrada',
             'entidad_id': self.env.ref('licitaciones_publicas.entidad_01').id})
         invalid = self.list_row('ZZ-50-GYR-050GYR032-N-990-2026')
         valid = self.list_row('LA-50-GYR-050GYR033-N-991-2026')
         carga = self.load([invalid, valid])
         carga._confirm()
-        self.assertEqual(carga.incidencia_ids.campo, 'prefijo_identificador')
-        self.assertEqual(carga.aparicion_ids.procedimiento_id.identificador, valid[1])
+        self.assertEqual(set(carga.incidencia_ids.mapped('campo')), {'tipo_procedimiento', 'unidad_compradora'})
+        self.assertEqual(set(carga.aparicion_ids.procedimiento_id.mapped('identificador')), {invalid[1], valid[1]})
         second = self.load([valid])
-        self.assertEqual(second.procedimientos_gone, 0)
+        self.assertEqual(second.procedimientos_gone, 1)
         second._confirm()
 
     def test_config_change_rejects_stale_preview(self):

@@ -1,6 +1,6 @@
 {
     'name': 'Gestión de Licitaciones Públicas',
-    'version': '19.0.3.0.1',
+    'version': '19.0.4.0.0',
     'category': 'Sales/Public Procurement',
     'summary': 'Detección, criba y expedientes por empresa',
     'author': 'Alphaqueb Consulting SAS',
@@ -8,7 +8,7 @@
     'license': 'OPL-1',
     'icon': '/licitaciones_publicas/static/description/icon.svg',
     'depends': ['base', 'mail', 'web', 'contacts', 'report_xlsx'],
-    'external_dependencies': {'python': ['openpyxl', 'xlsxwriter']},
+    'external_dependencies': {'python': ['openpyxl', 'xlsxwriter', 'unidecode']},
     'data': [
         'security/licitaciones_security.xml', 'security/ir.model.access.csv',
         'data/sequences.xml', 'data/catalog_data.xml', 'data/tipos_archivo.xml',

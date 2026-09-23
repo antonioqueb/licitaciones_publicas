@@ -1,6 +1,7 @@
-> **DEV-01/DEV-02/DEV-03 — Solo QA (19.0.3.0.1):** rama
+> **DEV-01/DEV-02/DEV-03 — Solo QA (19.0.4.0.0):** rama
 > `qa/dev01-dev02-importacion`. Ver [configuración dinámica](docs/dev01-dev02-qa.md)
 > y [detección de archivos ya procesados](docs/dev03-qa.md).
+> Incluye [Funcional 101: alias y correcciones de catálogo](docs/funcional-101-qa.md).
 > Esta rama no debe desplegarse en producción ni fusionarse a `main` sin una nueva instrucción.
 
 # Gestión de Licitaciones Públicas · Odoo 19
@@ -28,7 +29,7 @@ cliente y capturas reales. Véase [evidencia](docs/verificacion.md).
    dentro de `addons_path`.
 3. Añadir [OCA reporting-engine 19.0](https://github.com/OCA/reporting-engine/tree/19.0)
    a `addons_path`; se requiere el addon `report_xlsx`.
-4. Instalar `openpyxl` y `xlsxwriter` en el Python del servidor. Instalar
+4. Instalar `openpyxl`, `xlsxwriter` y `Unidecode==1.4.0` en el Python del servidor. Instalar
    `wkhtmltopdf` compatible con ese servidor para los tres reportes PDF.
 5. Configurar `data_dir` en una ubicación persistente del servidor. El parámetro
    nativo `ir_attachment.location` debe ser `file` para almacenar los binarios

@@ -4,6 +4,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from ..parser import DATE_FIELDS, identifier_parts
+from ..catalog_resolution import CATALOGS, aliases
 from .common import IMPORT_TOKEN, FLOW_TOKEN, imported, internal, lock, modal
 
 RESOLVABLE = {'procedimiento': {'tipo_contratacion_id', 'unidad_compradora_id', 'entidad_id', 'nombre_publicado', *DATE_FIELDS},
@@ -25,6 +26,8 @@ class Incidencia(models.Model):
     campo = fields.Char(string='Campo', required=True)
     valor_esperado = fields.Text(string='Valor actual')
     valor_encontrado = fields.Text(string='Valor encontrado')
+    detalle = fields.Text(string='Contexto del archivo', readonly=True)
+    es_valor_no_reconocido = fields.Boolean(string='Valor de catálogo no reconocido', readonly=True)
     antes_json = fields.Json(readonly=True)
     despues_json = fields.Json(readonly=True)
     severidad = fields.Selection([('bloqueante', 'Bloqueante'), ('advertencia', 'Advertencia')], string='Severidad', required=True, tracking=True)
@@ -33,6 +36,16 @@ class Incidencia(models.Model):
     resuelta_por_id = fields.Many2one('res.users', string='Resuelta por', readonly=True)
     fecha_resolucion = fields.Datetime(string='Fecha de resolución', readonly=True)
     escalada_fecha = fields.Datetime(string='Escalada el', readonly=True)
+
+    @api.constrains('es_valor_no_reconocido', 'severidad', 'campo', 'state', 'nota_resolucion', 'procedimiento_id')
+    def _check_correction(self):
+        for rec in self:
+            if rec.es_valor_no_reconocido and (rec.severidad != 'advertencia' or rec.campo not in CATALOGS):
+                raise ValidationError('Un valor de catálogo no reconocido siempre es una advertencia.')
+            if rec.es_valor_no_reconocido and not rec.procedimiento_id:
+                raise ValidationError('La corrección de catálogo debe conservar el procedimiento afectado.')
+            if rec.state in ('resuelta', 'ignorada') and not (rec.nota_resolucion or '').strip():
+                raise ValidationError('Resolver o ignorar requiere una nota.')
 
     @api.constrains('partida_id', 'procedimiento_id', 'origen', 'carga_id')
     def _check_target(self):
@@ -52,7 +65,14 @@ class Incidencia(models.Model):
             raise AccessError('Las incidencias se generan durante la importación.')
         records = super().create(vals_list)
         for rec in records:
-            rec.activity_schedule('mail.mail_activity_data_todo', user_id=(rec.procedimiento_id.user_id or rec.carga_id.user_id).id, summary='Revisar incidencia de importación')
+            responsible = rec.procedimiento_id.user_id or rec.carga_id.user_id
+            summary = 'Revisar incidencia de importación'
+            if rec.es_valor_no_reconocido:
+                managers = self.env.ref('licitaciones_publicas.group_licitaciones_manager').sudo().all_user_ids
+                scope = rec.carga_id.company_ids or rec.procedimiento_id.company_ids
+                responsible = managers.filtered(lambda u: u.active and (not scope or bool(u.company_ids & scope)))[:1] or self.env.ref('base.user_admin')
+                summary = "%s no reconocido: '%s'" % (rec.campo, rec.valor_encontrado or '(vacío)')
+            rec.activity_schedule('mail.mail_activity_data_todo', user_id=responsible.id, summary=summary[:200])
         return records
 
     def write(self, vals):
@@ -70,15 +90,20 @@ class Incidencia(models.Model):
         self.ensure_one()
         return modal(self.env['licitacion.resolver.incidencia.wizard'], {'incidencia_id': self.id, 'decision': 'ignorar'})
 
-    def _resolve(self, decision, nota):
+    def _resolve(self, decision, nota, catalog_record=None, guardar_alias=False):
         self.ensure_one()
+        self.check_access('write')
+        if self.es_valor_no_reconocido and not self.env.su and not self.env.user.has_group('licitaciones_publicas.group_licitaciones_manager'):
+            raise AccessError('Solo un administrador de Licitaciones puede atender correcciones de catálogo.')
         lock(self)
         if not (nota or '').strip() or self.state != 'abierta':
             raise ValidationError('Una incidencia abierta requiere una nota de resolución.')
         if decision not in ('resolver', 'ignorar'):
             raise ValidationError('Decisión desconocida.')
         if decision == 'resolver':
-            if self.campo in ('prefijo_identificador', 'caracter_identificador'):
+            if self.es_valor_no_reconocido:
+                self._apply_catalog(catalog_record, guardar_alias)
+            elif self.campo in ('prefijo_identificador', 'caracter_identificador'):
                 parts = identifier_parts(self.identificador_observado)
                 if self.campo == 'prefijo_identificador':
                     valid = self.env['licitacion.tipo.procedimiento'].search_count([('prefijo', '=', parts['tipo_procedimiento']), ('activo', '=', True)])
@@ -116,7 +141,29 @@ class Incidencia(models.Model):
             'nota_resolucion': nota.strip(), 'resuelta_por_id': self.env.uid, 'fecha_resolucion': fields.Datetime.now()})
         self.activity_ids.action_feedback(feedback=nota)
         self.message_post(body='Incidencia %s: %s' % ('resuelta' if decision == 'resolver' else 'ignorada', nota))
+        if self.procedimiento_id:
+            self.procedimiento_id.message_post(body='Incidencia %s (%s) %s: %s' % (
+                self.id, self.campo, 'resuelta' if decision == 'resolver' else 'ignorada', nota))
         return True
+
+    def _apply_catalog(self, record, guardar_alias):
+        model, fk, _groups = CATALOGS[self.campo]
+        if not record or record._name != model or len(record) != 1 or not record.exists():
+            raise ValidationError('Seleccione un registro del catálogo correspondiente.')
+        record.check_access('read')
+        if any(field in record._fields and not record[field] for field in ('active', 'activo')) or (self.campo == 'estatus_portal' and record.estado == 'inactivo'):
+            raise ValidationError('Seleccione un registro activo del catálogo.')
+        target = self.procedimiento_id
+        lock(target)
+        if target[fk].id != self.antes_json:
+            raise UserError('El valor del procedimiento cambió. Revise la corrección antes de continuar.')
+        if guardar_alias:
+            if self.campo != 'entidad_federativa':
+                raise ValidationError('Solo la entidad admite guardar el alias desde este asistente.')
+            if ',' in (self.valor_encontrado or ''):
+                raise ValidationError('El valor contiene comas; revise manualmente los alias del catálogo.')
+            record.write({'nombres_alternativos': ', '.join(aliases(','.join(filter(None, [record.nombres_alternativos, self.valor_encontrado]))))})
+        target.with_context(_lp_import=IMPORT_TOKEN).write({fk: record.id})
 
     def _cron_escalar(self):
         hours = int(self.env['ir.config_parameter'].sudo().get_param('licitaciones_publicas.escalamiento_horas', '24'))

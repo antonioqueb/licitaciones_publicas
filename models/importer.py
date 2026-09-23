@@ -1,6 +1,9 @@
 """Odoo adapter: preview is read-only; commit uses a strictly filtered portal payload."""
 import base64
 import hashlib
+import json
+
+from psycopg2.errors import SerializationFailure, UniqueViolation
 
 from odoo import fields
 from odoo.exceptions import AccessError, UserError
@@ -8,11 +11,14 @@ from odoo.exceptions import AccessError, UserError
 from ..parser import (WorkbookReader, ImportValidationError, PARTIDA_FIELDS, DATE_FIELDS, LIST_METADATA_FIELDS,
                       business_key, diff_rows, digest, norm, identifier_parts)
 from .common import IMPORT_TOKEN, FLOW_TOKEN, require_companies
+from ..catalog_resolution import CATALOGS, catalog_norm, choose_record
 
 
 class LicitacionImporter:
     def __init__(self, env, binary_data, filename, tz_name='America/Mexico_City'):
         self.env = env
+        self.filename = filename
+        self._records_cache = {}
         profiles = env['licitacion.tipo.archivo'].search([('activo', '=', True)])
         self.profiles = [rec._configuration() for rec in profiles]
         try:
@@ -31,17 +37,39 @@ class LicitacionImporter:
                 reader.close()
         except ImportValidationError as exc:
             raise UserError(str(exc)) from exc
-        if self.tipo == 'listado':
-            entities = {norm(e.name): e.code for e in env['licitacion.entidad.federativa'].search([])}
-            for row in self.rows:
-                name = row.pop('entidad_nombre', '')
-                if name:
-                    entity_code = entities.get(norm(name))
-                    if not entity_code:
-                        raise UserError('Entidad federativa no reconocida en catálogo: %s.' % name)
-                    if row.get('entidad_codigo') and row['entidad_codigo'] != entity_code:
-                        raise UserError('Nombre y código de entidad no coinciden: %s.' % name)
-                    row['entidad_codigo'] = entity_code
+
+    def resolve_catalog_value(self, campo, texto, procedimiento=None):
+        """Read-only for preview. Missing references are materialized at commit."""
+        model, _fk, groups = CATALOGS[campo]
+        domain = [('activo', '=', True)] if campo == 'tipo_procedimiento' else []
+        if campo == 'estatus_portal':
+            domain = [('estado', '!=', 'inactivo')]
+        if campo not in self._records_cache:
+            self._records_cache[campo] = self.env[model].search(domain)
+        records = self._records_cache[campo]
+        if campo == 'entidad_federativa' and str(texto or '').strip().isdigit():
+            return records.filtered(lambda r: r.code == str(texto).strip().zfill(2))[:1]
+        return choose_record(records, groups, texto)[0]
+
+    def _catalog_texts(self, row):
+        parts = identifier_parts(row['identificador'])
+        return {'entidad_federativa': row.get('entidad_nombre') or row.get('entidad_codigo', ''),
+                'estatus_portal': row.get('estatus', ''), 'tipo_contratacion': row.get('tipo_codigo', ''),
+                'tipo_procedimiento': parts['tipo_procedimiento'], 'caracter_procedimiento': parts['caracter'],
+                'unidad_compradora': row.get('unidad_codigo', '')}
+
+    def _row_catalogs(self, row):
+        return {key: self.resolve_catalog_value(key, value) for key, value in self._catalog_texts(row).items()}
+
+    def _list_comparison(self, row):
+        resolved = self._row_catalogs(row)
+        result = {key: value for key, value in row.items() if key not in ('_fila', 'entidad_nombre')}
+        result.update(unidad_codigo=resolved['unidad_compradora'].code or row.get('unidad_codigo', ''),
+                      unidad_nombre=norm(row.get('unidad_nombre')),
+                      entidad_codigo=resolved['entidad_federativa'].code or self._catalog_texts(row)['entidad_federativa'],
+                      estatus=norm(resolved['estatus_portal'].name or row.get('estatus')),
+                      tipo_codigo=resolved['tipo_contratacion'].code or row.get('tipo_codigo', ''))
+        return result
 
     @classmethod
     def for_carga(cls, carga):
@@ -82,12 +110,17 @@ class LicitacionImporter:
                 row['clave_hash'] = key
             else:
                 key = rec.identificador
+                raw = rec.catalogos_portal or {}
                 row = {'identificador': key, 'nombre_publicado': rec.nombre_publicado,
                     'codigo_expediente': rec.codigo_expediente or '',
-                    'unidad_codigo': rec.unidad_compradora_id.code,
-                    'unidad_nombre': norm(rec.unidad_compradora_id.name),
-                    'entidad_codigo': rec.entidad_id.code or '',
-                    'estatus': norm(rec.estatus_portal_id.name), 'tipo_codigo': rec.tipo_contratacion_id.code}
+                    'unidad_codigo': rec.unidad_compradora_id.code or raw.get('unidad_compradora', ''),
+                    'unidad_nombre': norm(raw.get('unidad_nombre') or rec.unidad_compradora_id.name),
+                    'entidad_codigo': rec.entidad_id.code or raw.get('entidad_federativa', ''),
+                    'estatus': norm(rec.estatus_portal_id.name or raw.get('estatus_portal', '')),
+                    'tipo_codigo': rec.tipo_contratacion_id.code or raw.get('tipo_contratacion', '')}
+                for crossing, column in [('entidad_federativa', 'entidad_codigo'), ('tipo_contratacion', 'tipo_codigo'), ('unidad_compradora', 'unidad_codigo')]:
+                    if crossing in raw and not self.resolve_catalog_value(crossing, raw[crossing]):
+                        row[column] = raw[crossing]
                 row.update({k: fields.Datetime.to_string(rec[k]) if rec[k] else False for k in DATE_FIELDS})
                 row.update({k: rec[k] if k == 'numero_listado' else rec[k] or '' for k in LIST_METADATA_FIELDS})
             row['sigue_apareciendo'] = rec.sigue_apareciendo
@@ -113,7 +146,7 @@ class LicitacionImporter:
         self._validate_previous_records(previous, current)
         incoming = []
         for data in self.rows:
-            row = dict(data, sigue_apareciendo=True)
+            row = dict(self._list_comparison(data) if self.tipo == 'listado' else data, sigue_apareciendo=True)
             if self.tipo == 'detalle':
                 row['clave_hash'] = business_key(data)
             else:
@@ -155,6 +188,10 @@ class LicitacionImporter:
 
     def _catalog_state(self):
         return {
+            'crossings': {key: self.env[model].with_context(active_test=False).search([]).read(
+                list(dict.fromkeys(['id', 'write_date', *[field for group in groups for field in group],
+                    *[field for field in ('active', 'activo', 'estado', 'nombres_alternativos') if field in self.env[model]._fields]])))
+                for key, (model, _fk, groups) in CATALOGS.items()},
             'prefijos': [(r.prefijo, r.activo) for r in self.env['licitacion.tipo.procedimiento'].search([])],
             'caracteres': self.env['licitacion.caracter.procedimiento'].search([]).mapped('clave'),
             'sai': [(r.code, r.active, sorted(r.cucop_ids.filtered('active').mapped('code')))
@@ -166,34 +203,32 @@ class LicitacionImporter:
         if not identifier:
             return []
         parts = identifier_parts(identifier)
-        tests = [('prefijo_identificador', 'licitacion.tipo.procedimiento', 'prefijo', parts['tipo_procedimiento'], [('activo', '=', True)]),
-                 ('caracter_identificador', 'licitacion.caracter.procedimiento', 'clave', parts['caracter'], [])]
+        tests = [('tipo_procedimiento', parts['tipo_procedimiento']), ('caracter_procedimiento', parts['caracter'])]
         issues = []
-        for field, model, key, value, domain in tests:
-            if not self.env[model].search_count([(key, '=', value), *domain]):
+        for field, value in tests:
+            if not self.resolve_catalog_value(field, value):
                 issues.append({'campo': field, 'target_identificador': target or identifier,
                     'identificador_observado': identifier, 'valor_esperado': 'Identificador existente en catálogo del cliente',
-                    'valor_encontrado': value, 'antes_json': False, 'despues_json': value, 'severidad': 'bloqueante'})
+                    'valor_encontrado': value, 'antes_json': False, 'despues_json': value, 'severidad': 'advertencia',
+                    'es_valor_no_reconocido': True, 'detalle': json.dumps({'archivo': self.filename, 'identificador': identifier}, ensure_ascii=False, indent=2)})
         return issues
 
     def _congruencia(self, carga):
         issues = []
         if self.tipo == 'listado':
             for row in self.rows:
-                identifier_issues = self._identifier_issues(row['identificador'])
-                issues.extend(identifier_issues)
-                if identifier_issues:
-                    # Las demás incongruencias necesitan un procedimiento válido.
-                    # Se evaluarán al reimportar después de completar el catálogo.
-                    continue
-                if not row.get('entidad_codigo'):
-                    continue
-                unit = self.env['licitacion.unidad.compradora'].search([('code', '=', row['unidad_codigo'])], limit=1)
-                if unit.entidad_id and unit.entidad_id.code != row['entidad_codigo']:
-                    entity = self.env['licitacion.entidad.federativa'].search([('code', '=', row['entidad_codigo'])], limit=1)
-                    issues.append({'target_identificador': row['identificador'], 'campo': 'entidad_id',
-                        'valor_esperado': unit.entidad_id.name, 'valor_encontrado': entity.name,
-                        'antes_json': unit.entidad_id.id, 'despues_json': entity.id, 'severidad': 'bloqueante'})
+                procedure = self.env['licitacion.procedimiento'].with_context(active_test=False).search([('identificador', '=', row['identificador'])], limit=1)
+                for field, text in self._catalog_texts(row).items():
+                    if self.resolve_catalog_value(field, text, procedure):
+                        continue
+                    model, fk, groups = CATALOGS[field]
+                    _matched, suggestion = choose_record(self.env[model].search([]), groups, text)
+                    issues.append({'target_identificador': row['identificador'], 'identificador_observado': row['identificador'],
+                        'campo': field, 'valor_esperado': procedure[fk].display_name if procedure and procedure[fk] else suggestion,
+                        'valor_encontrado': text, 'antes_json': procedure[fk].id if procedure else False,
+                        'despues_json': False, 'severidad': 'advertencia', 'es_valor_no_reconocido': True,
+                        'detalle': json.dumps({'fila': row.get('_fila'), 'archivo': carga.archivo_nombre,
+                            'identificador': row['identificador'], 'unidad_publicada': row.get('unidad_nombre')}, ensure_ascii=False, indent=2)})
             return issues
         procedure = carga.procedimiento_id
         for identifier in sorted({procedure.identificador, self.identifier, *self.content_identifiers} - {None, False}):
@@ -221,39 +256,31 @@ class LicitacionImporter:
                            'severidad': 'advertencia'})
         return issues
 
-    def _catalog(self, model, domain, values):
-        # Narrow privilege: only whitelisted catalog creation during a confirmed import.
-        allowed = {'licitacion.unidad.compradora', 'licitacion.estatus.portal'}
-        if model not in allowed:
-            raise AccessError('Catálogo no autorizado para alta automática.')
-        catalog = self.env[model].sudo().with_context(active_test=False)
-        record = catalog.search(domain, limit=1)
+    def _ensure_status(self, text):
+        # Only statuses are auto-created; the unknown-value warning remains.
+        if not (text or '').strip():
+            return self.env['licitacion.estatus.portal']
+        catalog = self.env['licitacion.estatus.portal'].sudo().with_context(active_test=False)
+        code = catalog_norm(text).replace(' ', '_')
+        record = catalog.search([('code', '=', code)], limit=1)
         if not record:
-            record = catalog.create(values)
-            if model == 'licitacion.estatus.portal':
-                manager = self.env.ref('licitaciones_publicas.group_licitaciones_manager').sudo().user_ids.filtered('active')[:1]
-                manager = manager or self.env.ref('base.user_admin')
-                record.activity_schedule('mail.mail_activity_data_todo', user_id=manager.id,
-                                         summary='Validar nuevo estatus del portal')
-        if not record.active:
-            raise UserError('El catálogo %s está archivado; un administrador debe revisarlo.' % record.display_name)
+            try:
+                with self.env.cr.savepoint():
+                    record = catalog.create({'code': code, 'name': text, 'tipo': 'auto_creado', 'estado': 'por_revisar'})
+            except UniqueViolation as exc:
+                # A concurrent import inserted the status after our repeatable-read snapshot.
+                # Let Odoo retry the complete RPC against a fresh snapshot.
+                raise SerializationFailure('El catálogo de estatus cambió durante la confirmación.') from exc
         return record
 
     def _procedure_values(self, row):
-        entity = self.env['licitacion.entidad.federativa'].search([('code', '=', row.get('entidad_codigo'))], limit=1) if row.get('entidad_codigo') else False
-        unit = self._catalog('licitacion.unidad.compradora', [('code', '=', row['unidad_codigo'])],
-            {'code': row['unidad_codigo'], 'name': row['unidad_nombre'], 'entidad_id': entity.id if entity else False})
-        status = self._catalog('licitacion.estatus.portal', [('code', '=', norm(row['estatus']).upper().replace(' ', '_'))],
-            {'code': norm(row['estatus']).upper().replace(' ', '_'), 'name': row['estatus'], 'tipo': 'auto_creado', 'estado': 'por_revisar'})
-        tipo = self.env['licitacion.tipo.contratacion'].search([('code', '=', row['tipo_codigo'])], limit=1)
-        if not tipo:
-            raise UserError('No existe el tipo de contratación %s.' % row['tipo_codigo'])
-        if norm(unit.name) != norm(row['unidad_nombre']):
-            unit.write({'name': row['unidad_nombre']})
-        if entity and not unit.entidad_id:
-            unit.write({'entidad_id': entity.id})
+        resolved = self._row_catalogs(row)
+        if not resolved['estatus_portal']:
+            resolved['estatus_portal'] = self._ensure_status(row.get('estatus'))
         vals = {'identificador': row['identificador'], 'nombre_publicado': row['nombre_publicado'],
-                'unidad_compradora_id': unit.id, 'estatus_portal_id': status.id, 'tipo_contratacion_id': tipo.id}
+                'catalogos_portal': dict(self._catalog_texts(row), unidad_nombre=row.get('unidad_nombre', ''))}
+        # An unknown value never erases a previous valid mapping.
+        vals.update({CATALOGS[key][1]: record.id for key, record in resolved.items() if record})
         if 'codigo_expediente' in row:
             vals['codigo_expediente'] = row['codigo_expediente'] or False
         vals.update({k: row[k] for k in LIST_METADATA_FIELDS if k in row})
@@ -274,14 +301,10 @@ class LicitacionImporter:
                 rec = model.browse(entry['record_id']) if entry['record_id'] else model
                 if self.tipo == 'listado':
                     source_row = next(r for r in self.rows if r['identificador'] == row['identificador'])
-                    if self._identifier_issues(row['identificador']):
-                        # La fila permanece en la carga y en la incidencia. No
-                        # inventar un procedimiento con identificadores inválidos.
-                        continue
                     vals = self._procedure_values(source_row)
                     if not rec:
                         rec = model.create(dict(vals, primer_snapshot_id=carga.id))
-                    elif category == 'cambios':
+                    else:
                         vals.pop('identificador', None)
                         if rec.fecha_fallo and vals.get('fecha_fallo') and fields.Datetime.to_datetime(vals['fecha_fallo']) > rec.fecha_fallo and not rec.fecha_fallo_original:
                             vals['fecha_fallo_original'] = rec.fecha_fallo
@@ -292,7 +315,7 @@ class LicitacionImporter:
                             rec.activity_schedule('mail.mail_activity_data_todo', user_id=rec.user_id.id, summary='Revisar fechas nuevas de procedimiento descartado')
                         rec.write(vals)
                     rec.write({'ultimo_snapshot_id': carga.id, 'sigue_apareciendo': True, 'fecha_ya_no_aparece': False})
-                    self._snapshot(env, carga, rec, row, True)
+                    self._snapshot(env, carga, rec, source_row, True)
                 else:
                     vals = {k: row[k] for k in PARTIDA_FIELDS}
                     if not rec:
@@ -318,13 +341,15 @@ class LicitacionImporter:
             issue = dict(issue)
             identifier = issue.pop('target_identificador', None)
             partida_hash = issue.pop('target_partida_hash', None)
-            procedure = procedure_model.search([('identificador', '=', identifier)], limit=1) if identifier else carga.procedimiento_id
+            procedure = procedure_model.with_context(active_test=False).search([('identificador', '=', identifier)], limit=1) if identifier else carga.procedimiento_id
             partida = env['licitacion.partida'].search([('procedimiento_id', '=', procedure.id), ('clave_hash', '=', partida_hash)], limit=1) if partida_hash else env['licitacion.partida']
             existing = env['licitacion.incidencia'].search([
                 ('procedimiento_id', '=', procedure.id), ('campo', '=', issue['campo']),
                 ('partida_id', '=', partida.id), ('carga_id', '=', carga.id),
                 ('identificador_observado', '=', issue.get('identificador_observado', False)),
                 ('state', '=', 'abierta')], limit=1)
+            if issue.get('es_valor_no_reconocido') and procedure:
+                issue['antes_json'] = procedure[CATALOGS[issue['campo']][1]].id
             if not existing:
                 env['licitacion.incidencia'].create(dict(issue, carga_id=carga.id,
                     procedimiento_id=procedure.id, partida_id=partida.id,

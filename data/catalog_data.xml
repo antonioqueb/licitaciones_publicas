@@ -28,7 +28,7 @@
 <record id="entidad_27" model="licitacion.entidad.federativa"><field name="code">27</field><field name="name">Tabasco</field></record>
 <record id="entidad_28" model="licitacion.entidad.federativa"><field name="code">28</field><field name="name">Tamaulipas</field></record>
 <record id="entidad_29" model="licitacion.entidad.federativa"><field name="code">29</field><field name="name">Tlaxcala</field></record>
-<record id="entidad_30" model="licitacion.entidad.federativa"><field name="code">30</field><field name="name">Veracruz de Ignacio de la Llave</field></record>
+<record id="entidad_30" model="licitacion.entidad.federativa"><field name="code">30</field><field name="name">Veracruz de Ignacio de la Llave</field><field name="nombres_alternativos">VERACRUZ, VERACRUZ DE LA LLAVE</field></record>
 <record id="entidad_31" model="licitacion.entidad.federativa"><field name="code">31</field><field name="name">Yucatán</field></record>
 <record id="entidad_32" model="licitacion.entidad.federativa"><field name="code">32</field><field name="name">Zacatecas</field></record>
 <record id="tipo_adq" model="licitacion.tipo.contratacion"><field name="code">ADQ</field><field name="name">Adquisiciones</field><field name="clave_identificador">I</field></record>

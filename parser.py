@@ -95,12 +95,6 @@ def profile_config(values):
 
 DETAIL_REQUIRED = {'numero', 'partida_especifica', 'clave_cucop', 'descripcion_detallada', 'unidad_medida'}
 LIST_REQUIRED = {'identificador', 'nombre_publicado', 'unidad_nombre', 'estatus', 'tipo_codigo'}
-TYPE_CODES = {'adq': 'ADQ', 'adquisiciones': 'ADQ', 'adquisicion': 'ADQ',
-              'servicios': 'SER', 'servicio': 'SER', 'ser': 'SER',
-              'servicios relacionados con la obra': 'SRO',
-              'servicios relacionados con la obra publica': 'SRO', 'sro': 'SRO',
-              'obra publica': 'OBR', 'obras publicas': 'OBR', 'obr': 'OBR',
-              'arrendamiento': 'ARR', 'arrendamientos': 'ARR', 'arr': 'ARR'}
 
 
 def identifier_parts(identifier):
@@ -312,6 +306,9 @@ class WorkbookReader:
                         raise ImportValidationError('La misma clave de negocio tiene datos contradictorios.')
                     continue
                 seen[key] = parsed
+                if self.tipo == 'listado':
+                    seen[key] = dict(parsed)
+                    parsed['_fila'] = idx
                 result.append(parsed)
             except ImportValidationError as exc:
                 raise ImportValidationError('Fila %s: %s' % (idx, exc)) from exc
@@ -343,16 +340,12 @@ class WorkbookReader:
         row = {k: code(data.get(k)) for k in PORTAL_FIELDS if k not in DATE_FIELDS}
         row['identificador'] = identifier
         row['unidad_codigo'] = row['unidad_codigo'] or identifier.split('-')[3]
-        row['tipo_codigo'] = TYPE_CODES.get(norm(data.get('tipo_codigo')))
-        if not row['tipo_codigo']:
-            raise ImportValidationError('Tipo de contratación no reconocido: %s' % data.get('tipo_codigo'))
-        for k in ('nombre_publicado', 'unidad_nombre', 'estatus'):
-            if not row[k]:
-                raise ImportValidationError('Falta %s.' % k)
+        # Keep catalog values verbatim; the ORM resolver decides whether they
+        # match an official entry and records warnings for unknown values.
+        if not row['nombre_publicado']:
+            raise ImportValidationError('Falta nombre_publicado.')
         if row['entidad_codigo']:
             row['entidad_codigo'] = row['entidad_codigo'].zfill(2)
-            if row['entidad_codigo'] not in {str(n).zfill(2) for n in range(1, 33)}:
-                raise ImportValidationError('Código INEGI fuera de 01–32.')
         for optional in ('entidad_codigo', 'codigo_expediente'):
             if optional not in self.headers:
                 row.pop(optional)

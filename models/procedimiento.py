@@ -33,13 +33,15 @@ class Procedimiento(models.Model):
     caracter = fields.Char(string='Clave de carácter', compute='_compute_identifier', store=True)
     ordenamiento_legal = fields.Char(string='Ordenamiento previo', readonly=True,
         help='Dato histórico conservado. El identificador ya no determina un ordenamiento legal.')
-    tipo_procedimiento_id = fields.Many2one('licitacion.tipo.procedimiento', string='Prefijo de catálogo', compute='_compute_catalogos')
-    caracter_procedimiento_id = fields.Many2one('licitacion.caracter.procedimiento', string='Carácter de catálogo', compute='_compute_catalogos')
+    tipo_procedimiento_id = fields.Many2one('licitacion.tipo.procedimiento', string='Prefijo de catálogo', compute='_compute_catalogos', store=True, readonly=False)
+    caracter_procedimiento_id = fields.Many2one('licitacion.caracter.procedimiento', string='Carácter de catálogo', compute='_compute_catalogos', store=True, readonly=False)
     consecutivo = fields.Char(compute='_compute_identifier', store=True)
     ejercicio = fields.Char(compute='_compute_identifier', store=True)
-    unidad_compradora_id = fields.Many2one('licitacion.unidad.compradora', string='Unidad compradora', required=True, ondelete='restrict', tracking=True)
-    entidad_id = fields.Many2one(related='unidad_compradora_id.entidad_id', store=True, string='Entidad')
-    tipo_contratacion_id = fields.Many2one('licitacion.tipo.contratacion', string='Contratación', required=True, ondelete='restrict', tracking=True)
+    unidad_compradora_id = fields.Many2one('licitacion.unidad.compradora', string='Unidad compradora', ondelete='restrict', tracking=True)
+    entidad_portal_id = fields.Many2one('licitacion.entidad.federativa', string='Entidad del portal', readonly=True, ondelete='restrict')
+    entidad_id = fields.Many2one('licitacion.entidad.federativa', compute='_compute_entidad', store=True, string='Entidad')
+    tipo_contratacion_id = fields.Many2one('licitacion.tipo.contratacion', string='Contratación', ondelete='restrict', tracking=True)
+    catalogos_portal = fields.Json(string='Valores de catálogo originales', readonly=True)
     fecha_junta_aclaraciones = fields.Datetime(string='Junta de aclaraciones', tracking=True)
     fecha_limite_preguntas = fields.Datetime(string='Límite de preguntas', tracking=True)
     fecha_entrega_muestras = fields.Datetime(string='Entrega de muestras', tracking=True)
@@ -85,20 +87,23 @@ class Procedimiento(models.Model):
     @api.depends('tipo_procedimiento', 'caracter')
     def _compute_catalogos(self):
         for rec in self:
-            rec.tipo_procedimiento_id = self.env['licitacion.tipo.procedimiento'].search([('prefijo', '=', rec.tipo_procedimiento)], limit=1)
+            rec.tipo_procedimiento_id = self.env['licitacion.tipo.procedimiento'].search([('prefijo', '=', rec.tipo_procedimiento), ('activo', '=', True)], limit=1)
             rec.caracter_procedimiento_id = self.env['licitacion.caracter.procedimiento'].search([('clave', '=', rec.caracter)], limit=1)
+
+    @api.depends('entidad_portal_id', 'unidad_compradora_id.entidad_id')
+    def _compute_entidad(self):
+        for rec in self:
+            rec.entidad_id = rec.entidad_portal_id or rec.unidad_compradora_id.entidad_id
 
     @api.constrains('identificador')
     def _check_identifier(self):
         for rec in self:
             try:
-                parts = identifier_parts(rec.identificador)
+                identifier_parts(rec.identificador)
             except ImportValidationError as exc:
                 raise ValidationError(str(exc)) from exc
-            if not self.env['licitacion.tipo.procedimiento'].search_count([('prefijo', '=', parts['tipo_procedimiento']), ('activo', '=', True)]):
-                raise ValidationError('El prefijo debe existir y estar activo en el catálogo del cliente.')
-            if not self.env['licitacion.caracter.procedimiento'].search_count([('clave', '=', parts['caracter'])]):
-                raise ValidationError('La clave de carácter debe existir en el catálogo del cliente.')
+            # Catalog absence is handled as an import warning (functional 101).
+            # Identifier syntax remains mandatory.
 
     @api.depends('partida_ids.company_ids')
     def _compute_companies(self):
@@ -147,7 +152,7 @@ class Procedimiento(models.Model):
         return super().create(vals_list)
 
     def _protected_fields(self):
-        return {'estatus_portal_id', 'primer_snapshot_id', 'ultimo_snapshot_id', 'sigue_apareciendo',
+        return {'estatus_portal_id', 'entidad_portal_id', 'catalogos_portal', 'tipo_procedimiento_id', 'caracter_procedimiento_id', 'primer_snapshot_id', 'ultimo_snapshot_id', 'sigue_apareciendo',
                 'fecha_ya_no_aparece', 'fecha_fallo_original', 'reapertura_habilitada', 'company_ids', *LIST_METADATA_FIELDS}
 
     def write(self, vals):

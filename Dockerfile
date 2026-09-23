@@ -23,6 +23,9 @@ from odoo import release
 import openpyxl
 import xlsxwriter
 import xlrd
+from unidecode import unidecode
+
+assert unidecode("México") == "Mexico"
 
 if release.version_info[:2] != (19, 0):
     raise RuntimeError('La imagen base debe contener Odoo 19.0.')
@@ -45,7 +48,7 @@ if target.exists():
 shutil.copytree(source, target)
 shutil.rmtree('/tmp/licitaciones-oca')
 shutil.rmtree('/tmp/licitaciones-dependencies')
-print('Dependencias disponibles: openpyxl, xlsxwriter, xlrd y report_xlsx', manifest['version'])
+print('Dependencias disponibles: openpyxl, xlsxwriter, xlrd, Unidecode y report_xlsx', manifest['version'])
 PY
 
 USER odoo
