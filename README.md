@@ -1,4 +1,4 @@
-> **DEV-01/DEV-02/DEV-03 — Solo QA (19.0.3.0.0):** rama
+> **DEV-01/DEV-02/DEV-03 — Solo QA (19.0.3.0.1):** rama
 > `qa/dev01-dev02-importacion`. Ver [configuración dinámica](docs/dev01-dev02-qa.md)
 > y [detección de archivos ya procesados](docs/dev03-qa.md).
 > Esta rama no debe desplegarse en producción ni fusionarse a `main` sin una nueva instrucción.

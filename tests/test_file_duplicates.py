@@ -6,7 +6,7 @@ import zipfile
 from unittest.mock import patch
 
 from odoo import api, Command, sql_db
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import tagged
 from odoo.tests.common import new_test_user
 from odoo.tools import mute_logger
@@ -225,10 +225,42 @@ class TestFileDuplicates(LicitacionCase):
         wizard = self.upload().with_context(allowed_company_ids=company.ids)
         first = self.confirm_file(wizard)
         limited = self.env['licitacion.carga.wizard'].with_user(user).with_context(allowed_company_ids=other.ids)
-        wizard = limited.create({'archivo': self.binary, 'archivo_nombre': 'InformaciónPública_export_dev03.xlsx', 'fecha_snapshot': '2026-09-22'})
+        values = {'archivo': self.binary, 'archivo_nombre': 'InformaciónPública_export_dev03.xlsx', 'fecha_snapshot': '2026-09-22'}
+        wizard = limited.create(dict(values))
+        self.assertEqual(wizard.env.uid, user.id)
+        self.assertFalse(wizard.env.su)
         self.assertFalse(wizard.cargas_previas_ids)
         with self.assertRaises(AccessError):
-            wizard.carga_previa_id = first
+            first.with_env(limited.env).check_access('read')
+        with self.assertRaises(AccessError):
+            wizard.write({'carga_previa_id': first.id})
+        with self.assertRaises(AccessError):
+            limited.create(dict(values, carga_previa_id=first.id))
+        with self.assertRaises(AccessError):
+            limited.with_context(default_carga_previa_id=first.id).create(dict(values))
+        with self.assertRaises(AccessError):
+            limited.new(dict(values, carga_previa_id=first.id))._onchange_previous()
+        self.assertFalse(wizard.carga_previa_id)
+
+    def test_visible_previous_load_can_be_selected_by_normal_user(self):
+        company = self.companies[0]
+        first = self.confirm_file(self.upload().with_context(allowed_company_ids=company.ids))
+        user = new_test_user(self.env, login='dev03_visible', groups='licitaciones_publicas.group_licitaciones_user',
+                            company_id=company.id, company_ids=[Command.set(company.ids)])
+        limited = self.env['licitacion.carga.wizard'].with_user(user).with_context(allowed_company_ids=company.ids)
+        values = {'archivo': self.binary, 'archivo_nombre': 'InformaciónPública_export_dev03.xlsx', 'fecha_snapshot': '2026-09-22'}
+        wizard = limited.create(dict(values, carga_previa_id=first.id))
+        self.assertEqual(wizard.action_open_existing()['res_id'], first.id)
+        wizard.write({'carga_previa_id': False})
+        wizard.write({'carga_previa_id': first.id})
+        wizard._onchange_previous()
+        self.assertEqual(wizard.carga_previa_id, first)
+        defaulted = limited.with_context(default_carga_previa_id=first.id).create(dict(values))
+        self.assertEqual(defaulted.carga_previa_id, first)
+        with self.assertRaises(ValidationError):
+            wizard.write({'archivo': self.variant()})
+        with self.assertRaises(ValidationError):
+            limited.create(dict(values, archivo=self.variant(), carga_previa_id=first.id))
 
     def test_catalog_duplicate_requires_explicit_force(self):
         headers = ['Partida específica', 'Clave CUCoP+', 'Descripción SAI', 'Descripción CUCoP+'] + [f'Extra {i}' for i in range(6)]

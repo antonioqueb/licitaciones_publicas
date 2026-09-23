@@ -1,6 +1,6 @@
 {
     'name': 'Gestión de Licitaciones Públicas',
-    'version': '19.0.3.0.0',
+    'version': '19.0.3.0.1',
     'category': 'Sales/Public Procurement',
     'summary': 'Detección, criba y expedientes por empresa',
     'author': 'Alphaqueb Consulting SAS',

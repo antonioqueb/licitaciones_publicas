@@ -36,11 +36,16 @@ class CargaWizard(models.TransientModel):
     carga_id = fields.Many2one('licitacion.carga', readonly=True, copy=False)
     request_fingerprint = fields.Char(readonly=True, copy=False)
 
-    @api.constrains('carga_previa_id')
+    def _check_previous_access(self, previous_id):
+        # Odoo 19 runs @api.constrains in sudo mode. Permissions must be
+        # checked at the operation boundary, in the caller's environment.
+        if previous_id:
+            self.env['licitacion.carga'].browse(previous_id).check_access('read')
+
+    @api.constrains('carga_previa_id', 'archivo')
     def _check_selected_previous(self):
         for rec in self:
             if rec.carga_previa_id:
-                rec.carga_previa_id.check_access('read')
                 if rec.carga_previa_id not in rec.env['licitacion.carga']._confirmed_file(rec._file()[1]):
                     raise ValidationError('La carga seleccionada debe corresponder a este archivo confirmado.')
 
@@ -48,16 +53,28 @@ class CargaWizard(models.TransientModel):
     def create(self, vals_list):
         if not internal(self.env) and any({'carga_id', 'request_fingerprint'} & vals.keys() for vals in vals_list):
             raise AccessError('La carga asociada la determina el asistente.')
+        previous_default = self.default_get(['carga_previa_id']).get('carga_previa_id', False)
         for vals in vals_list:
             # Untrusted default_* context must not inject a cached result.
             vals.setdefault('carga_id', False)
             vals.setdefault('request_fingerprint', False)
+            vals.setdefault('carga_previa_id', previous_default)
+            self._check_previous_access(vals['carga_previa_id'])
         return super().create(vals_list)
 
     def write(self, vals):
         if not internal(self.env) and {'carga_id', 'request_fingerprint'} & vals.keys():
             raise AccessError('La carga asociada la determina el asistente.')
+        if 'carga_previa_id' in vals:
+            self._check_previous_access(vals['carga_previa_id'])
         return super().write(vals)
+
+    @api.onchange('carga_previa_id')
+    def _onchange_previous(self):
+        # Onchange uses unsaved records and does not invoke create/write.
+        for rec in self:
+            rec._check_previous_access(rec.carga_previa_id.id)
+        self._check_selected_previous()
 
     def _file(self):
         self.ensure_one()

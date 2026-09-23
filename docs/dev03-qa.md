@@ -1,6 +1,6 @@
 # DEV-03 · Archivos ya procesados · Solo QA
 
-Versión `19.0.3.0.0`, rama `qa/dev01-dev02-importacion`.
+Versión `19.0.3.0.1`, rama `qa/dev01-dev02-importacion`.
 Implementación preparada para el ensayo aislado y actualización de QA.
 No implica despliegue ni aceptación en producción.
 
@@ -64,6 +64,12 @@ no autorizadas. La barrera transaccional global no devuelve datos de esas cargas
 Dos ámbitos sin acceso mutuo pueden conservar su propia carga; la protección
 de identidad global de procedimientos permanece vigente.
 
+La selección de una carga anterior comprueba permisos en `create`, `write` y
+`onchange`, con el usuario original, incluyendo los valores por defecto del
+contexto. En Odoo 19 las restricciones `@api.constrains` se ejecutan con `sudo`;
+se reservan aquí para comprobar que la carga corresponde al archivo, y no para
+autorizar el acceso. Véase [implementación de `_validate_fields`](https://github.com/odoo/odoo/blob/19.0/odoo/orm/models.py).
+
 Referencias técnicas: [reintentos RPC de Odoo 19](https://github.com/odoo/odoo/blob/19.0/odoo/service/model.py)
 y [aislamiento de transacciones PostgreSQL](https://www.postgresql.org/docs/15/transaction-iso.html).
 
@@ -87,7 +93,7 @@ se reescriben resúmenes históricos sin evidencia de qué ocurrió en cada carg
 
 - Cuatro pruebas independientes verifican hash de bytes originales, base64
   inválido/vacío y límite de tamaño.
-- `TestFileDuplicates` agrega quince pruebas ORM: bloqueo antes del parser,
+- `TestFileDuplicates` agrega dieciséis pruebas ORM: bloqueo antes del parser,
   archivos renombrados/editados, múltiples coincidencias, fuerza y auditoría,
   doble envío, cargas pendientes, catálogo, empresas, contexto RPC, huellas
   históricas y transacciones PostgreSQL con snapshot obsoleto.
@@ -104,3 +110,9 @@ se reescriben resúmenes históricos sin evidencia de qué ocurrió en cada carg
 La ejecución ORM, PDF/XLSX, concurrencia real y revisión visual en Odoo se
 validarán en el ensayo del servidor. Las comprobaciones locales por sí solas
 no certifican esa ejecución ni cobertura global del 80 %.
+
+El ensayo de `a02ff1c` ejecutó 64 pruebas y reportó un fallo, cero errores:
+la selección de una carga ajena no produjo el `AccessError` esperado por el
+motivo descrito arriba. La instalación de QA no llegó a iniciarse. La versión
+`19.0.3.0.1` corrige esa autorización y amplía las comprobaciones de selección
+permitida y denegada; requiere repetir el ensayo completo.
