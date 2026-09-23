@@ -1,4 +1,4 @@
-> **DEV-01/DEV-02 — Solo QA (19.0.2.0.1):** rama
+> **DEV-01/DEV-02 — Solo QA (19.0.2.0.2):** rama
 > `qa/dev01-dev02-importacion`. Ver [configuración dinámica y pendientes](docs/dev01-dev02-qa.md).
 > Esta rama no debe desplegarse en producción ni fusionarse a `main` sin una nueva instrucción.
 

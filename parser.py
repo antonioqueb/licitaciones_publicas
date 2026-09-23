@@ -97,6 +97,8 @@ DETAIL_REQUIRED = {'numero', 'partida_especifica', 'clave_cucop', 'descripcion_d
 LIST_REQUIRED = {'identificador', 'nombre_publicado', 'unidad_nombre', 'estatus', 'tipo_codigo'}
 TYPE_CODES = {'adq': 'ADQ', 'adquisiciones': 'ADQ', 'adquisicion': 'ADQ',
               'servicios': 'SER', 'servicio': 'SER', 'ser': 'SER',
+              'servicios relacionados con la obra': 'SRO',
+              'servicios relacionados con la obra publica': 'SRO', 'sro': 'SRO',
               'obra publica': 'OBR', 'obras publicas': 'OBR', 'obr': 'OBR',
               'arrendamiento': 'ARR', 'arrendamientos': 'ARR', 'arr': 'ARR'}
 

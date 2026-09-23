@@ -63,6 +63,39 @@ class TestDynamicProfiles(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(parser.ImportValidationError):
                 self.reader(workbook(LIST_HEADERS, [row])).rows()
 
+    def test_work_related_services_normalized_and_distinct(self):
+        cases = [
+            ('SERVICIOS RELACIONADOS CON LA OBRA', 'SRO'),
+            ('  servicios  relacionados con la obra  ', 'SRO'),
+            ('Servicios relacionados con la obra pública', 'SRO'),
+            ('SRO', 'SRO'),
+            ('Servicios', 'SER'),
+            ('Obra pública', 'OBR'),
+            ('Adquisiciones', 'ADQ'),
+            ('Arrendamientos', 'ARR'),
+        ]
+        for label, expected in cases:
+            with self.subTest(label=label):
+                row = list(LIST_ROW)
+                row[9] = label
+                parsed = self.reader(workbook(LIST_HEADERS, [row])).rows()[0]
+                self.assertEqual(parsed['tipo_codigo'], expected)
+
+    def test_official_listing_work_related_services_on_excel_row_15(self):
+        rows = []
+        for number in range(1, 15):
+            row = list(LIST_ROW)
+            row[0] = number
+            row[1] = f'LA-50-GYR-050GYR032-N-{number}-2026'
+            rows.append(row)
+        rows[-1][9] = 'SERVICIOS RELACIONADOS CON LA OBRA'
+        content = workbook(LIST_HEADERS, rows)
+        parsed = self.reader(content).rows()
+        self.assertEqual(len(parsed), 14)
+        self.assertEqual(parsed[-1]['tipo_codigo'], 'SRO')
+        diff = parser.diff_rows(self.reader(content).rows(), {r['identificador']: r for r in parsed})
+        self.assertEqual([len(diff[k]) for k in ('nuevos', 'cambios', 'sin_cambios', 'gone')], [0, 0, 14, 0])
+
     def test_official_headers_match_is_not_limited_to_four_keywords(self):
         headers = list(LIST_HEADERS)
         # Conservar palabras clave, mapeo mínimo y las 13 columnas, pero cambiar

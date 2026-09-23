@@ -53,6 +53,28 @@ class TestDynamicImport(LicitacionCase):
         self.assertFalse(carga.aparicion_ids.procedimiento_id.fecha_junta_aclaraciones)
         self.assertTrue(carga.aparicion_ids.procedimiento_id.fecha_apertura)
 
+    def test_work_related_services_preview_commit_and_idempotence(self):
+        row = self.list_row('LA-50-GYR-050GYR032-N-990-2026')
+        row[9] = 'SERVICIOS RELACIONADOS CON LA OBRA'
+        tipo = self.env.ref('licitaciones_publicas.tipo_sro')
+        self.assertEqual(tipo.code, 'SRO')
+        self.assertFalse(tipo.clave_identificador)
+        self.assertNotEqual(tipo, self.env.ref('licitaciones_publicas.tipo_ser'))
+        self.assertNotEqual(tipo, self.env.ref('licitaciones_publicas.tipo_obr'))
+        carga = self.load([row])
+        self.assertEqual(carga.procedimientos_nuevos, 1)
+        self.assertFalse(self.env['licitacion.procedimiento'].search([('identificador', '=', row[1])]))
+        carga._confirm()
+        procedure = carga.aparicion_ids.procedimiento_id
+        self.assertEqual(procedure.tipo_contratacion_id, tipo)
+        self.assertEqual(carga.aparicion_ids.datos_snapshot['tipo_codigo'], 'SRO')
+        row[9] = '  Servicios  relacionados con la obra  '
+        second = self.load([row])
+        self.assertEqual((second.procedimientos_nuevos, second.procedimientos_cambios, second.procedimientos_sin_cambios), (0, 0, 1))
+        second._confirm()
+        self.assertEqual(second.aparicion_ids.procedimiento_id, procedure)
+        self.assertEqual(self.env['licitacion.tipo.contratacion'].search_count([('code', '=', 'SRO')]), 1)
+
     def test_seed_catalogs_and_client_descriptions(self):
         self.assertEqual(self.env['licitacion.tipo.archivo'].search_count([]), 6)
         prefixes = self.env['licitacion.tipo.procedimiento'].search([])

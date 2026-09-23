@@ -1,6 +1,6 @@
 # DEV-01 / DEV-02 — Implementación para QA
 
-Rama: `qa/dev01-dev02-importacion`. Versión: `19.0.2.0.1`.
+Rama: `qa/dev01-dev02-importacion`. Versión: `19.0.2.0.2`.
 Estos cambios no se publican en `main` ni se aplican a producción.
 
 ## Catálogos
@@ -12,8 +12,17 @@ pueden configurar. Se conservan los registros: no se permite borrarlos.
 Se cargan los seis tipos solicitados, cuatro prefijos LA/IA/LI/LO y tres claves
 N/I/T. Sus descripciones son «Por definir por cliente». Los datos semilla tienen
 `noupdate=1`: actualizar el módulo conserva la configuración del cliente.
-El despliegue actual parte de QA `7cbee6d` (19.0.1.0.1), donde estos catálogos
-todavía no existen, por lo que se crean con la configuración completa.
+El despliegue inicial creó estos catálogos sobre QA `7cbee6d` (19.0.1.0.1).
+QA `25a4fce` (19.0.2.0.1) ya completó 48 pruebas de Odoo sin fallos ni errores
+y se instaló según la evidencia del release `licitaciones-dev-20260922T215618917490Z`.
+
+La versión 19.0.2.0.2 añade el tipo de contratación «Servicios relacionados con
+la obra», código interno `SRO`, observado en el listado del cliente. Admite
+también «Servicios relacionados con la obra pública», sin diferencias de
+acentos, mayúsculas o espacios. Mantiene separados `SER` y `OBR`; no deduce una
+clave del identificador. El nuevo registro semilla se incorpora al actualizar
+el módulo, conservando los catálogos ya configurados. Su prueba ORM recorre
+previsualización, confirmación, snapshot y segunda carga sin cambios.
 
 `licitacion.tipo.archivo` contiene todos los campos DEV-01. Se añade
 `mapeo_columnas` (JSON) para definir qué campo de destino corresponde a cada

@@ -35,6 +35,7 @@
 <record id="tipo_ser" model="licitacion.tipo.contratacion"><field name="code">SER</field><field name="name">Servicios</field><field name="clave_identificador">S</field></record>
 <record id="tipo_obr" model="licitacion.tipo.contratacion"><field name="code">OBR</field><field name="name">Obra pública</field><field name="clave_identificador">O</field></record>
 <record id="tipo_arr" model="licitacion.tipo.contratacion"><field name="code">ARR</field><field name="name">Arrendamientos</field><field name="clave_identificador">A</field></record>
+<record id="tipo_sro" model="licitacion.tipo.contratacion"><field name="code">SRO</field><field name="name">Servicios relacionados con la obra</field></record>
 <record id="motivo_no_giro" model="licitacion.motivo.descarte"><field name="code">NO_GIRO</field><field name="name">Fuera de nuestro giro</field><field name="aplica_a">ambos</field></record>
 <record id="motivo_obra_publica" model="licitacion.motivo.descarte"><field name="code">OBRA_PUBLICA</field><field name="name">Obra pública</field><field name="aplica_a">ambos</field></record>
 <record id="motivo_entidad_fuera" model="licitacion.motivo.descarte"><field name="code">ENTIDAD_FUERA</field><field name="name">Entidad fuera de cobertura</field><field name="aplica_a">ambos</field></record>

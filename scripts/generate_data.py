@@ -64,6 +64,8 @@ def generate():
         data += record(f'entidad_{n:02}', 'licitacion.entidad.federativa', {'code': f'{n:02}', 'name': state})
     for code, name, key in [('ADQ', 'Adquisiciones', 'I'), ('SER', 'Servicios', 'S'), ('OBR', 'Obra pública', 'O'), ('ARR', 'Arrendamientos', 'A')]:
         data += record('tipo_' + code.lower(), 'licitacion.tipo.contratacion', {'code': code, 'name': name, 'clave_identificador': key})
+    data += record('tipo_sro', 'licitacion.tipo.contratacion',
+                   {'code': 'SRO', 'name': 'Servicios relacionados con la obra'})
     for code, name in [('NO_GIRO', 'Fuera de nuestro giro'), ('OBRA_PUBLICA', 'Obra pública'), ('ENTIDAD_FUERA', 'Entidad fuera de cobertura'), ('SIN_CLAVES', 'Sin claves de interés'), ('PLAZO_INVIABLE', 'Plazo inviable')]:
         data += record('motivo_' + code.lower(), 'licitacion.motivo.descarte', {'code': code, 'name': name, 'aplica_a': 'ambos'})
     for code, name in [('VIGENTE', 'Vigente'), ('EN_ACLARACIONES', 'En aclaraciones'), ('EN_REPREGUNTAS', 'En repreguntas'), ('EN_ATENCION_DE_PREGUNTAS', 'En atención de preguntas')]:
