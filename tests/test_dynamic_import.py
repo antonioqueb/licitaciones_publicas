@@ -15,7 +15,7 @@ class TestDynamicImport(LicitacionCase):
     def load(self, rows, headers=LIST_HEADERS, filename='InformaciónPública_export_prueba.xlsx'):
         wizard = self.env['licitacion.carga.wizard'].create({
             'archivo': excel(rows, headers), 'archivo_nombre': filename, 'fecha_snapshot': '2026-09-22'})
-        action = wizard.action_preview()
+        action = self.content_preview(wizard)
         return self.env['licitacion.preview.wizard'].browse(action['res_id']).carga_id
 
     def list_row(self, identifier):

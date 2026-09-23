@@ -75,7 +75,20 @@ class LicitacionCase(TransactionCase):
         rows = rows or [[1, 21601, '21601-0028', 'FIBRA', 'Fibra verde', 'PIEZA', 4000]]
         wizard = self.env['licitacion.carga.wizard'].create({'archivo': excel(rows, blanks=blanks),
             'archivo_nombre': filename or procedure.identificador + '.xlsx', 'fecha_snapshot': day})
-        action = wizard.action_preview()
+        action = self.content_preview(wizard)
         if action.get('res_id'):
             return self.env[action['res_model']].browse(action['res_id']).carga_id
         return self.env['licitacion.carga'].browse(action['context']['default_carga_id'])
+
+    def content_preview(self, wizard):
+        """Content-diff regression tests explicitly force a repeated binary.
+
+        DEV-03 tests call action_preview directly to exercise the upload gate.
+        """
+        action = wizard.action_preview()
+        if action['res_model'] == 'licitacion.carga.wizard':
+            form = self.modal_form(wizard.action_force())
+            form.motivo = 'Prueba de idempotencia del contenido con reimportación intencional.'
+            form.confirmado = True
+            action = form.save().action_confirm()
+        return action

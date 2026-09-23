@@ -34,6 +34,7 @@ access_caracter_procedimiento_manager,caracter.procedimiento manager,model_licit
 access_clave_sai,clave.sai,model_licitacion_clave_sai,group_licitaciones_user,1,0,0,0
 access_clave_sai_manager,clave.sai manager,model_licitacion_clave_sai,group_licitaciones_manager,1,1,1,0
 access_carga_wizard,carga.wizard,model_licitacion_carga_wizard,group_licitaciones_user,1,1,1,1
+access_forzar_carga_wizard,forzar.carga.wizard,model_licitacion_forzar_carga_wizard,group_licitaciones_user,1,1,1,1
 access_asignar_procedimiento_wizard,asignar.procedimiento.wizard,model_licitacion_asignar_procedimiento_wizard,group_licitaciones_user,1,1,1,1
 access_preview_wizard,preview.wizard,model_licitacion_preview_wizard,group_licitaciones_user,1,1,1,1
 access_preview_line,preview.line,model_licitacion_preview_line,group_licitaciones_user,1,1,1,1
@@ -42,3 +43,4 @@ access_generar_expedientes_wizard,generar.expedientes.wizard,model_licitacion_ge
 access_resolver_incidencia_wizard,resolver.incidencia.wizard,model_licitacion_resolver_incidencia_wizard,group_licitaciones_user,1,1,1,1
 access_propagar_empresas_wizard,propagar.empresas.wizard,model_licitacion_propagar_empresas_wizard,group_licitaciones_user,1,1,1,1
 access_propagar_proveedores_wizard,propagar.proveedores.wizard,model_licitacion_propagar_proveedores_wizard,group_licitaciones_user,1,1,1,1
+access_archivo_huella_system,Control de huellas,model_licitacion_archivo_huella,base.group_system,1,0,0,0

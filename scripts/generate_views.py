@@ -36,10 +36,28 @@ def draft_banner():
 
 
 def generate():
-    w = wizard('carga.wizard', 'Previsualizar cambios', draft_banner() + '<group>' + field('archivo_nombre', 'invisible="1"') + field('archivo', 'filename="archivo_nombre"') + fields('fecha_snapshot tipo_detectado origen_portal alcance zona_horaria') + '</group><p>Declare la fecha de descarga. Ningún procedimiento o partida cambia antes de confirmar el preview.</p>', 'action_preview')
+    matches = '''<field name="cargas_previas_ids" readonly="1" nolabel="1"><list create="0" edit="0" delete="0">
+<field name="archivo_nombre"/><field name="fecha_snapshot"/><field name="procesado_el"/><field name="procesado_por_id"/>
+<field name="resumen"/><field name="state"/><button name="action_open" string="Abrir" type="object"/>
+</list></field>'''
+    upload = '<form string="Nueva carga">' + draft_banner() + '<group>' + field('archivo_nombre', 'invisible="1"') + field('archivo', 'filename="archivo_nombre"') + fields('fecha_snapshot tipo_detectado origen_portal alcance zona_horaria') + '''</group>
+<div class="alert alert-warning" role="alert" invisible="not cargas_previas_ids">
+<strong>El archivo «<field name="archivo_nombre" readonly="1" nolabel="1"/>» ya fue procesado.</strong>
+<p>Consulte la carga anterior. Para procesarlo nuevamente debe indicar un motivo y confirmar la reimportación.</p>
+<group><field name="carga_previa_id" domain="[('id','in',cargas_previas_ids)]" options="{'no_create': True, 'no_create_edit': True}"/>
+<field name="previa_snapshot"/><field name="previa_procesada"/><field name="previa_usuario_id"/><field name="previa_resumen"/><field name="previa_state"/></group>
+''' + matches + '''</div><p>Declare la fecha de descarga. Ningún procedimiento o partida cambia antes de confirmar la previsualización.</p>
+<footer><button name="action_preview" string="Previsualizar cambios" type="object" class="btn-primary" invisible="cargas_previas_ids"/>
+<span class="btn btn-primary disabled" role="button" aria-disabled="true" invisible="not cargas_previas_ids">Previsualizar cambios</span>
+<button name="action_open_existing" string="Abrir carga existente" type="object" invisible="not cargas_previas_ids"/>
+<button string="Cancelar" special="cancel"/>
+<button name="action_force" string="Forzar re-importación (avanzado)" type="object" invisible="not cargas_previas_ids"/>
+</footer></form>'''
+    w = view('view_carga_wizard', 'licitacion.carga.wizard', upload)
     w += action('action_carga_wizard', 'Nueva carga', 'licitacion.carga.wizard', 'form', '<field name="target">new</field>')
+    w += wizard('forzar.carga.wizard', 'Confirmar reimportación', '<p>Se creará una nueva carga del mismo archivo. Las anteriores se conservarán.</p><group>' + fields('carga_wizard_id motivo') + field('confirmado', 'required="1"') + '</group>', 'action_confirm')
     w += wizard('asignar.procedimiento.wizard', 'Asignar y previsualizar', '<group>' + fields('carga_id procedimiento_id nota') + '</group>', 'action_asignar')
-    preview = '<form string="Previsualización">' + draft_banner() + '<group>' + fields('carga_id resumen') + '</group><div class="alert alert-warning" role="alert" invisible="not advertencias">' + field('advertencias') + '</div><notebook>'
+    preview = '<form string="Previsualización">' + draft_banner() + '<group>' + fields('carga_id resumen carga_base_id') + '</group><div class="alert alert-info" role="status" invisible="not aviso_base">' + field('aviso_base', 'nolabel="1"') + '</div><div class="alert alert-warning" role="alert" invisible="not advertencias">' + field('advertencias') + '</div><notebook>'
     for key, label in [('nuevos', 'Nuevos'), ('cambios', 'Cambios'), ('sin_cambios', 'Sin cambios'), ('gone', 'Ya no aparecen')]:
         preview += f'<page string="{label}"><field name="{key}_ids"><list create="0" edit="0" delete="0">' + fields('clave descripcion detalle') + '</list><form><group>' + fields('clave descripcion detalle') + '</group></form></field></page>'
     preview += '</notebook><footer>' + button('action_confirm', 'Confirmar importación', 'class="btn-primary"') + button('action_rechazar', 'Rechazar carga') + '<button string="Cerrar" special="cancel"/></footer></form>'
@@ -88,8 +106,10 @@ def generate():
     e += server_action('action_cartas_zip', 'Imprimir cartas de expedientes (ZIP)', 'expediente', 'action_print_cartas_zip')
     save('views/expediente_views.xml', e)
 
-    c = view('view_carga_list', 'licitacion.carga', '<list create="0" decoration-warning="state == \'pendiente_asignacion\'">' + fields('fecha_snapshot archivo_nombre tipo_detectado subtipo_detectado tipo_archivo_id alcance registros state resumen user_id') + '</list>')
-    c += view('view_carga_form', 'licitacion.carga', '<form create="0" edit="0"><header>' + button('action_asignar', 'Asignar procedimiento', "invisible=\"state != 'pendiente_asignacion'\"") + button('action_preview', 'Previsualizar cambios', "invisible=\"state not in ('borrador','previsualizada')\"") + button('action_rechazar', 'Rechazar carga', "invisible=\"state in ('confirmada','rechazada')\"") + field('state', 'widget="statusbar"') + '</header><sheet>' + draft_banner() + '<group>' + fields('archivo_nombre fecha_snapshot tipo_detectado subtipo_detectado tipo_archivo_id procedimiento_id origen_portal alcance zona_horaria resumen nota_asignacion user_id') + field('company_ids', 'widget="many2many_tags"') + field('archivo', 'filename="archivo_nombre"') + '</group></sheet><chatter/></form>')
+    c = view('view_carga_list', 'licitacion.carga', '<list create="0" decoration-warning="state == \'pendiente_asignacion\'">' + fields('fecha_snapshot archivo_nombre tipo_detectado subtipo_detectado tipo_archivo_id alcance registros state resumen user_id') + field('binary_sha256', 'optional="hide"') + field('reimportacion_forzada', 'optional="hide"') + field('procesado_el', 'optional="hide"') + '</list>')
+    c += view('view_carga_form', 'licitacion.carga', '<form create="0" edit="0"><header>' + button('action_asignar', 'Asignar procedimiento', "invisible=\"state != 'pendiente_asignacion'\"") + button('action_preview', 'Previsualizar cambios', "invisible=\"state not in ('borrador','previsualizada')\"") + button('action_rechazar', 'Rechazar carga', "invisible=\"state in ('confirmada','rechazada')\"") + field('state', 'widget="statusbar"') + '</header><sheet>' + draft_banner() + '''<div class="alert alert-info" role="status" invisible="coincidencias_count &lt; 2">
+Este binario tiene <field name="coincidencias_count" nolabel="1"/> cargas confirmadas. Se conserva el historial para auditoría.
+<field name="coincidencias_ids" readonly="1"><list create="0" edit="0" delete="0"><field name="archivo_nombre"/><field name="fecha_snapshot"/><field name="procesado_el"/><field name="procesado_por_id"/><field name="resumen"/><field name="reimportacion_forzada"/><button name="action_open" string="Abrir" type="object"/></list></field></div>''' + '<group>' + fields('archivo_nombre fecha_snapshot tipo_detectado subtipo_detectado tipo_archivo_id procedimiento_id origen_portal alcance zona_horaria resumen nota_asignacion user_id procesado_el procesado_por_id carga_base_id binary_sha256') + field('company_ids', 'widget="many2many_tags"') + field('archivo', 'filename="archivo_nombre"') + '</group><group string="Reimportación" invisible="not reimportacion_forzada">' + fields('reimportacion_forzada motivo_reimportacion') + field('cargas_origen_ids', 'widget="many2many_tags"') + '</group><div class="alert alert-info" invisible="not aviso_base">' + field('aviso_base', 'nolabel="1"') + '</div></sheet><chatter/></form>')
     c += action('action_cargas', 'Historial de cargas', 'licitacion.carga')
     save('views/carga_views.xml', c)
 

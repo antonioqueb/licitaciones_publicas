@@ -52,6 +52,23 @@ class LicitacionImporter:
             ('scope_key', '=', carga.scope_key), ('state', '=', 'confirmada'),
             ('id', '!=', carga.id)], order='fecha_snapshot desc, id desc', limit=1)
 
+    def _baseline_warning(self, previous):
+        return (False if previous else
+                'No existe una carga confirmada anterior para este tipo y alcance. '
+                'Se compara contra los registros actuales del sistema; las ausencias no se marcarán.')
+
+    def _validate_previous_records(self, previous, current):
+        if not previous:
+            return
+        if self.tipo == 'listado':
+            expected = set(previous.aparicion_ids.filtered('presente').procedimiento_id.mapped('identificador'))
+        else:
+            expected = {business_key(row) for snapshot in previous.aparicion_ids
+                        for row in (snapshot.datos_snapshot or {}).get('partidas', [])}
+        if expected - current.keys():
+            raise UserError('La carga confirmada de referencia contiene registros que no están disponibles. '
+                            'Revise las empresas activas y los datos antes de continuar; no se usará una comparación vacía.')
+
     def _current(self, carga):
         model = 'licitacion.procedimiento' if self.tipo == 'listado' else 'licitacion.partida'
         # All records visible in this scope, including archived ones, preserve identity.
@@ -93,6 +110,7 @@ class LicitacionImporter:
         if previous and carga.fecha_snapshot < previous.fecha_snapshot:
             raise UserError('El snapshot es anterior al último confirmado de este alcance. No puede sobrescribir datos más recientes.')
         records, current, versions = self._current(carga)
+        self._validate_previous_records(previous, current)
         incoming = []
         for data in self.rows:
             row = dict(data, sigue_apareciendo=True)
@@ -133,7 +151,7 @@ class LicitacionImporter:
                               'congruencia': congruencia, 'configuration': self.profiles,
                               'catalogs': self._catalog_state()})
         return {'diff': diff, 'fingerprint': fingerprint, 'present_keys': keys,
-                'previous_id': previous.id, 'congruencia': congruencia}
+                'previous_id': previous.id, 'aviso_base': self._baseline_warning(previous), 'congruencia': congruencia}
 
     def _catalog_state(self):
         return {
@@ -319,6 +337,7 @@ class LicitacionImporter:
                 ('tipo_detectado', '=', 'catalogo'), ('state', '=', 'confirmada'),
                 ('id', '!=', carga.id), ('fecha_snapshot', '>', carga.fecha_snapshot)]):
             raise UserError('El catálogo SAI ya tiene una carga confirmada más reciente.')
+        previous = self._previous(carga)
         grouped = {}
         for row in self.rows:
             entry = grouped.setdefault(row['code'], {'code': row['code'], 'name': row['name'], 'cucop': {}})
@@ -335,7 +354,9 @@ class LicitacionImporter:
             for entry in entries:
                 entry['record_id'] = records.filtered(lambda r: r.code == entry['key']).id
         return {'diff': diff, 'present_keys': list(grouped), 'congruencia': [],
+                'previous_id': previous.id, 'aviso_base': self._baseline_warning(previous),
                 'fingerprint': digest({'diff': diff, 'configuration': self.profiles,
+                                      'previous_id': previous.id,
                                       'scope': carga.scope_key, 'snapshot': carga.fecha_snapshot,
                                       'versions': [(r.id, r.write_date, r.active, [(c.id, c.write_date, c.active) for c in r.cucop_ids]) for r in records]})}
 

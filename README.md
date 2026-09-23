@@ -1,5 +1,6 @@
-> **DEV-01/DEV-02 — Solo QA (19.0.2.0.2):** rama
-> `qa/dev01-dev02-importacion`. Ver [configuración dinámica y pendientes](docs/dev01-dev02-qa.md).
+> **DEV-01/DEV-02/DEV-03 — Solo QA (19.0.3.0.0):** rama
+> `qa/dev01-dev02-importacion`. Ver [configuración dinámica](docs/dev01-dev02-qa.md)
+> y [detección de archivos ya procesados](docs/dev03-qa.md).
 > Esta rama no debe desplegarse en producción ni fusionarse a `main` sin una nueva instrucción.
 
 # Gestión de Licitaciones Públicas · Odoo 19
@@ -125,6 +126,12 @@ el socket local de Docker devuelve `permission denied`.
   horaria y alcance de búsqueda. La hoja, fila, cantidad de columnas y mapeo se
   obtienen del catálogo Tipos de archivo (DEV-01). El detalle sin padre conocido permanece
   pendiente hasta asignarlo con justificación.
+- **Archivo ya procesado:** se compara el SHA-256 del binario original con las
+  cargas confirmadas visibles. Se muestra el historial anterior y se bloquea
+  Previsualizar sin crear otra carga. «Forzar re-importación» requiere motivo
+  y confirmación explícita; el motivo queda registrado. Los archivos distintos
+  y las cargas previas aún pendientes siguen permitidos. Los duplicados antiguos
+  se conservan y se señalan para consulta.
 - **Preview:** nuevos, cambios, sin cambios y ya no aparecen. Los catálogos y
   registros destino se escriben únicamente al confirmar. Un archivo vacío o
   una previsualización obsoleta no puede confirmarse. La carga rechazada y su

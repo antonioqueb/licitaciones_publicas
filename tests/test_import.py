@@ -75,7 +75,9 @@ class TestImport(LicitacionCase):
     def test_stale_preview_rejected(self):
         p = self.procedure()
         first = self.preview(p)
-        stale = self.preview(p)
+        # A different binary exercises stale data, independently of DEV-03's
+        # earlier rejection of an identical file already confirmed.
+        stale = self.preview(p, rows=[[1, 21601, '21601-0028', 'FIBRA', 'Fibra verde', 'PIEZA', 4001]])
         first._confirm()
         with self.assertRaisesRegex(UserError, 'previsualización'):
             stale._confirm()
@@ -153,7 +155,7 @@ class TestImport(LicitacionCase):
                  'Licitación pública', 'Adquisiciones', f'E-2026-{n:08}', 'UC nueva', 'Zacatecas'] for n in range(1, 118)]
         def load():
             wizard = self.env['licitacion.carga.wizard'].create({'archivo': excel(rows, LIST_HEADERS), 'archivo_nombre': 'listado_sintetico.xlsx', 'fecha_snapshot': '2026-09-21'})
-            action = wizard.action_preview()
+            action = self.content_preview(wizard)
             return self.env['licitacion.preview.wizard'].browse(action['res_id']).carga_id
         carga = load()
         self.assertEqual(carga.procedimientos_nuevos, 117)

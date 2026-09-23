@@ -19,7 +19,7 @@ def generate():
     models = ['procedimiento', 'partida', 'partida.empresa', 'partida.proveedor', 'expediente', 'pregunta',
               'costeo.linea', 'documento', 'documento.version', 'carta.apoyo', 'carga', 'aparicion', 'incidencia', 'fecha.fatal']
     catalogs = ['unidad.compradora', 'estatus.portal', 'motivo.descarte', 'tipo.contratacion', 'entidad.federativa', 'clave.cucop', 'tipo.archivo', 'tipo.procedimiento', 'caracter.procedimiento', 'clave.sai']
-    wizards = ['carga.wizard', 'asignar.procedimiento.wizard', 'preview.wizard', 'preview.line', 'criba.wizard',
+    wizards = ['carga.wizard', 'forzar.carga.wizard', 'asignar.procedimiento.wizard', 'preview.wizard', 'preview.line', 'criba.wizard',
                'generar.expedientes.wizard', 'resolver.incidencia.wizard', 'propagar.empresas.wizard', 'propagar.proveedores.wizard']
     with (ROOT / 'security/ir.model.access.csv').open('w') as handle:
         writer = csv.writer(handle, lineterminator='\n')
@@ -35,6 +35,8 @@ def generate():
             if name in catalogs:
                 writer.writerow(['access_' + slug + '_manager', name + ' manager', 'model_licitacion_' + slug,
                                  'group_licitaciones_manager', 1, 1, 1, 0])
+        writer.writerow(['access_archivo_huella_system', 'Control de huellas', 'model_licitacion_archivo_huella',
+                         'base.group_system', 1, 0, 0, 0])
     security = '''<odoo>
 <record id="module_category_licitaciones" model="ir.module.category"><field name="name">Licitaciones Públicas</field></record>
 <record id="privilege_licitaciones" model="res.groups.privilege"><field name="name">Licitaciones Públicas</field><field name="category_id" ref="module_category_licitaciones"/></record>
