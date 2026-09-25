@@ -33,7 +33,7 @@ export class LpExpediente extends Component {
         this.pct = pct;
         this.state = useState({ loading: true, labels: null, data: null, tab: "preguntas" });
         onWillStart(() => this.load(this.props.recordId));
-        onWillUpdateProps((next) => next.recordId !== this.props.recordId && this.load(next.recordId));
+        onWillUpdateProps((next) => { if (next.recordId !== this.props.recordId) return this.load(next.recordId); });
     }
 
     async load(id = this.props.recordId) {
@@ -48,7 +48,7 @@ export class LpExpediente extends Component {
             this.state.data = data;
             if (data) {
                 if (!this.state.tabTouched) this.state.tab = this.tabFor(data);
-                this.env.config && this.env.config.setDisplayName && this.env.config.setDisplayName(data.record.folio);
+                if (this.env.config && this.env.config.setDisplayName) this.env.config.setDisplayName(data.record.folio);
             }
         } catch (error) {
             this.lp.notify(error);

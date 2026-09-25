@@ -29,7 +29,7 @@ export function useLp() {
 
     const client = (view, { name, context } = {}) => ({
         type: "ir.actions.client", tag: HUB_TAG, name: name || VIEW_TITLES[view],
-        context: { lp_view: view, ...(context || {}) },
+        context: Object.assign({ lp_view: view }, context),
     });
 
     const notify = (error) => {

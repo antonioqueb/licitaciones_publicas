@@ -6,6 +6,16 @@
 
 # Gestión de Licitaciones Públicas · Odoo 19
 
+## Centro de Licitaciones — 19.0.5.0.0 (diseño)
+
+Interfaz propia, guiada paso a paso y responsiva (teléfono, portátil y monitor grande), con paleta
+clínica sobria: tablero de inicio, procedimientos, flujo guiado del procedimiento, expedientes,
+armado guiado del expediente y carga en tres pasos. Los menús abren estos espacios; las vistas
+nativas (restilizadas) siguen disponibles y los formularios tienen el botón **Vista guiada**.
+**La lógica de negocio no cambia**: se llaman los mismos métodos, asistentes y reportes.
+Detalle en [docs/diseno-ui.md](docs/diseno-ui.md). Se actualiza con `-u licitaciones_publicas`
+(sin migración de datos).
+
 Implementación inicial del brief v1: cargas Excel con previsualización, criba,
 asignación de empresas y proveedores, expedientes por empresa, agenda,
 incidencias y exportables. Nombre técnico: `licitaciones_publicas`.

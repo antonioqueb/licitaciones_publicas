@@ -1,18 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 70" width="70" height="70" role="img" aria-labelledby="title desc">
   <title id="title">Licitaciones públicas</title>
-  <desc id="desc">Edificio público y documento con visto bueno sobre fondo morado.</desc>
+  <desc id="desc">Documento con lista de verificación y sello de aprobación sobre fondo teal clínico.</desc>
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/>
-      <stop offset="1" stop-color="#000000" stop-opacity=".12"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a7189"/>
+      <stop offset="1" stop-color="#0b3d4d"/>
     </linearGradient>
   </defs>
-  <rect width="70" height="70" rx="16" fill="#714b67"/>
-  <rect width="70" height="70" rx="16" fill="url(#g)"/>
-  <g fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <path d="m13 24 18-10 18 10Z"/>
-    <path d="M16 30h15M19 31v15M28 31v15M15 47h16M12 53h19"/>
-    <path d="M38 30h10l9 9v18H38Z"/>
-    <path d="M48 30v9h9M43 48l4 4 6-7"/>
+  <rect width="70" height="70" rx="16" fill="url(#bg)"/>
+  <rect x="17" y="12" width="30" height="40" rx="5" fill="#ffffff" opacity=".96"/>
+  <rect x="24" y="8" width="16" height="8" rx="3" fill="#d9edf3"/>
+  <g fill="none" stroke="#155e75" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M23 25l2.5 2.5L30 23"/>
+    <path d="M23 34l2.5 2.5L30 32"/>
+    <path d="M23 43l2.5 2.5L30 41"/>
   </g>
+  <g stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round">
+    <line x1="34" y1="25.5" x2="42" y2="25.5"/>
+    <line x1="34" y1="34.5" x2="42" y2="34.5"/>
+    <line x1="34" y1="43.5" x2="40" y2="43.5"/>
+  </g>
+  <circle cx="49" cy="50" r="10" fill="#1f6f4f" stroke="#ffffff" stroke-width="2.5"/>
+  <path d="M44.5 50l3 3 6-6" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

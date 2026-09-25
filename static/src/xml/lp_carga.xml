@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.Carga">
+    <div class="lp-page">
+        <LpHeader current="'carga'" eyebrow="'Importación del portal'" title="'Nueva carga'"
+                  subtitle="'Sube el Excel exportado de ComprasMX. Nada cambia en procedimientos ni renglones hasta que confirmes la previsualización.'">
+            <t t-set-slot="actions">
+                <button type="button" class="lp-btn lp-btn--ghost" t-on-click="openHistorial"><i class="fa fa-history" aria-hidden="true"/> Historial</button>
+                <button type="button" class="lp-btn lp-btn--ghost" t-on-click="openTipos" title="Formatos de archivo reconocidos"><i class="fa fa-cog" aria-hidden="true"/> Tipos de archivo</button>
+            </t>
+        </LpHeader>
+
+        <div class="lp-page__body">
+            <section class="lp-card lp-card--flush" aria-label="Pasos">
+                <LpStepper steps="steps" current="state.step" reached="reached" onSelect="(key) => this.go(key)"/>
+            </section>
+
+            <div class="lp-grid lp-grid--detail">
+                <div class="lp-stack">
+                    <!-- listo -->
+                    <section t-if="state.done" class="lp-card lp-done" aria-label="Carga procesada">
+                        <span class="lp-done__icon"><i class="fa fa-check" aria-hidden="true"/></span>
+                        <h2 class="lp-card__title">Carga procesada</h2>
+                        <p class="lp-muted">Si confirmaste la previsualización, los procedimientos y renglones ya reflejan el archivo. Si la rechazaste o cerraste, la carga quedó registrada sin aplicar cambios.</p>
+                        <div class="lp-now__actions">
+                            <button type="button" class="lp-btn lp-btn--primary" t-on-click="() => this.lp.goProcedimientos({ state: 'detectado' })"><i class="fa fa-search" aria-hidden="true"/> Cribar detectados</button>
+                            <button type="button" class="lp-btn lp-btn--outline" t-on-click="openHistorial"><i class="fa fa-history" aria-hidden="true"/> Ver historial</button>
+                            <button type="button" class="lp-btn lp-btn--ghost" t-on-click="otra"><i class="fa fa-plus" aria-hidden="true"/> Otra carga</button>
+                        </div>
+                    </section>
+
+                    <!-- paso 1 -->
+                    <section t-elif="state.step === 'archivo'" class="lp-card" aria-label="Archivo">
+                        <div class="lp-card__head"><h2 class="lp-card__title"><span class="lp-stepnum">1</span> Archivo del portal</h2></div>
+                        <LpDropzone accept="'.xlsx'" file="state.file" busy="state.analyzing" onFile="(file) => this.onFile(file)" onClear="() => this.clearFile()"/>
+
+                        <div t-if="state.file and !state.analyzing" class="lp-detect">
+                            <div t-if="state.tipo" class="lp-note lp-note--ok"><i class="fa fa-check-circle" aria-hidden="true"/> Formato reconocido: <strong t-esc="state.tipo"/>
+                                <span t-if="state.detalleBorrador"> · detalle de partidas: se importa como <strong>borrador</strong> pendiente de validación del cliente.</span>
+                            </div>
+                            <div t-elif="state.detectError" class="lp-note lp-note--warn"><i class="fa fa-exclamation-triangle" aria-hidden="true"/> El servidor no reconoció el archivo: <t t-esc="state.detectError"/></div>
+                            <div t-else="" class="lp-note lp-note--info"><i class="fa fa-info-circle" aria-hidden="true"/> El formato se confirmará al previsualizar.</div>
+
+                            <div t-if="state.previas.length" class="lp-note lp-note--warn">
+                                <i class="fa fa-copy" aria-hidden="true"/> <strong>Este archivo ya fue procesado</strong> (misma huella SHA-256). Consulta la carga anterior; para procesarlo de nuevo necesitas un motivo y confirmarlo en el paso 3.
+                                <ul class="lp-prevlist">
+                                    <li t-foreach="state.previas" t-as="row" t-key="row.id">
+                                        <button type="button" class="lp-link" t-on-click="() => this.openCarga(row)"><t t-esc="row.archivo_nombre"/></button>
+                                        · <t t-esc="fmtDate(row.fecha_snapshot)"/> · <t t-esc="name(row.user_id)"/> · <t t-esc="row.resumen"/>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="lp-wizard__foot">
+                            <span class="lp-muted">Hasta 25 MB. Se aceptan listados de procedimientos, detalles de partidas, catálogo SAI y anexos según los tipos de archivo configurados.</span>
+                            <button type="button" class="lp-btn lp-btn--primary" t-att-disabled="!state.file or state.analyzing" t-on-click="next">Continuar <i class="fa fa-arrow-right" aria-hidden="true"/></button>
+                        </div>
+                    </section>
+
+                    <!-- paso 2 -->
+                    <section t-elif="state.step === 'datos'" class="lp-card" aria-label="Datos de la descarga">
+                        <div class="lp-card__head"><h2 class="lp-card__title"><span class="lp-stepnum">2</span> Datos de la descarga</h2></div>
+                        <div class="lp-form">
+                            <label class="lp-field">
+                                <span class="lp-field__label">Fecha del snapshot <em>obligatoria</em></span>
+                                <DateTimeInput type="'date'" value="state.fecha" onChange="(value) => this.onFecha(value)" class="'lp-input'" placeholder="'Fecha en que descargaste el Excel'"/>
+                                <span class="lp-field__help">Declara la fecha real de la descarga: ordena las cargas y las comparaciones con la anterior.</span>
+                            </label>
+                            <label class="lp-field">
+                                <span class="lp-field__label">Origen</span>
+                                <select class="lp-input" t-on-change="(ev) => this.state.origen = ev.target.value">
+                                    <option t-foreach="origenes" t-as="o" t-key="o.key" t-att-value="o.key" t-att-selected="state.origen === o.key" t-esc="o.name"/>
+                                </select>
+                            </label>
+                            <label class="lp-field">
+                                <span class="lp-field__label">Alcance de la búsqueda <em>obligatorio</em></span>
+                                <input type="text" class="lp-input" t-att-value="state.alcance" t-on-input="(ev) => this.state.alcance = ev.target.value" placeholder="general"/>
+                                <span class="lp-field__help">Nombre estable de los filtros usados en el portal. Solo se comparan cargas con el mismo alcance: usa «general» salvo que exportes con filtros específicos.</span>
+                            </label>
+                            <label class="lp-field">
+                                <span class="lp-field__label">Zona horaria del Excel <em>obligatoria</em></span>
+                                <input type="text" class="lp-input" list="lp_zonas" t-att-value="state.zona" t-on-input="(ev) => this.state.zona = ev.target.value"/>
+                                <datalist id="lp_zonas"><option t-foreach="zonas" t-as="z" t-key="z" t-att-value="z"/></datalist>
+                                <span class="lp-field__help">Las fechas del portal se interpretan en esta zona y se guardan en UTC.</span>
+                            </label>
+                            <div class="lp-field">
+                                <span class="lp-field__label">Empresas del alcance</span>
+                                <div class="lp-chips"><span t-foreach="companies" t-as="c" t-key="c" class="lp-tag" t-esc="c"/></div>
+                                <span class="lp-field__help">Son las empresas activas en tu selector. La comparación con la carga anterior usa este mismo conjunto.</span>
+                            </div>
+                        </div>
+                        <div class="lp-wizard__foot">
+                            <button type="button" class="lp-btn lp-btn--ghost" t-on-click="back"><i class="fa fa-arrow-left" aria-hidden="true"/> Atrás</button>
+                            <button type="button" class="lp-btn lp-btn--primary" t-att-disabled="!valid" t-on-click="next">Continuar <i class="fa fa-arrow-right" aria-hidden="true"/></button>
+                        </div>
+                    </section>
+
+                    <!-- paso 3 -->
+                    <section t-elif="state.step === 'revisar'" class="lp-card" aria-label="Revisar">
+                        <div class="lp-card__head"><h2 class="lp-card__title"><span class="lp-stepnum">3</span> Revisar y previsualizar</h2></div>
+                        <dl class="lp-facts">
+                            <div><dt>Archivo</dt><dd t-esc="state.file.name"/></div>
+                            <div><dt>Formato</dt><dd t-esc="state.tipo || 'Se detecta al previsualizar'"/></div>
+                            <div><dt>Fecha del snapshot</dt><dd t-esc="state.fecha ? fmtDate(state.fecha) : '—'"/></div>
+                            <div><dt>Origen</dt><dd t-esc="label(MODELS.carga, 'origen_portal', state.origen)"/></div>
+                            <div><dt>Alcance</dt><dd t-esc="state.alcance"/></div>
+                            <div><dt>Zona horaria</dt><dd t-esc="state.zona"/></div>
+                        </dl>
+                        <div t-if="state.previas.length" class="lp-note lp-note--warn">
+                            <i class="fa fa-copy" aria-hidden="true"/> Archivo ya procesado en <t t-esc="state.previas.length"/> carga(s) confirmada(s). Puedes abrir la existente o forzar la reimportación con un motivo; las cargas anteriores se conservan.
+                        </div>
+                        <div t-else="" class="lp-note lp-note--info">
+                            <i class="fa fa-info-circle" aria-hidden="true"/> Al previsualizar verás nuevos, cambios, sin cambios y ausentes frente a la última carga confirmada del mismo alcance. Confirmar aplica todo en una sola transacción; rechazar conserva el archivo sin aplicar nada.
+                        </div>
+                        <div class="lp-wizard__foot">
+                            <button type="button" class="lp-btn lp-btn--ghost" t-on-click="back"><i class="fa fa-arrow-left" aria-hidden="true"/> Atrás</button>
+                            <div class="lp-wizard__actions">
+                                <t t-if="state.previas.length">
+                                    <button type="button" class="lp-btn lp-btn--outline" t-att-disabled="state.busy" t-on-click="abrirExistente"><i class="fa fa-folder-open-o" aria-hidden="true"/> Abrir carga existente</button>
+                                    <button type="button" class="lp-btn lp-btn--danger" t-att-disabled="state.busy" t-on-click="forzar"><i class="fa fa-repeat" aria-hidden="true"/> Forzar reimportación…</button>
+                                </t>
+                                <button t-else="" type="button" class="lp-btn lp-btn--primary" t-att-disabled="!valid or state.busy" t-on-click="previsualizar">
+                                    <i t-attf-class="fa {{state.busy ? 'fa-circle-o-notch fa-spin' : 'fa-eye'}}" aria-hidden="true"/> Previsualizar cambios
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <aside class="lp-stack">
+                    <section class="lp-card" aria-label="Cómo funciona la carga">
+                        <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-lightbulb-o" aria-hidden="true"/> Qué pasa después</h2></div>
+                        <ol class="lp-guide__steps lp-guide__steps--compact">
+                            <li><strong>Previsualización.</strong> Se compara el archivo con la última carga confirmada del mismo alcance: nuevos, cambios, sin cambios y ya no aparecen.</li>
+                            <li><strong>Confirmación.</strong> Se escriben procedimientos, renglones e incidencias en una sola transacción. Los ausentes se marcan, nunca se borran.</li>
+                            <li><strong>Criba.</strong> Los procedimientos nuevos quedan «Detectados» para decidir si participamos.</li>
+                        </ol>
+                    </section>
+                    <section class="lp-card" aria-label="Cargas recientes">
+                        <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-history" aria-hidden="true"/> Cargas recientes</h2></div>
+                        <LpEmpty t-if="!state.recientes.length" compact="true" icon="'fa-cloud-upload'" title="'Aún no hay cargas'"/>
+                        <ul t-else="" class="lp-rows lp-rows--tight">
+                            <li t-foreach="state.recientes" t-as="row" t-key="row.id" class="lp-row">
+                                <button type="button" class="lp-row__main" t-on-click="() => this.openCarga(row)">
+                                    <span class="lp-row__title" t-esc="row.archivo_nombre"/>
+                                    <span class="lp-row__meta"><t t-esc="fmtDate(row.fecha_snapshot)"/> · <t t-esc="label(MODELS.carga, 'tipo_detectado', row.tipo_detectado)"/> · <t t-esc="name(row.user_id)"/></span>
+                                </button>
+                                <span class="lp-badge" t-attf-class="lp-tone--{{cargaMeta[row.state].tone}}" t-esc="label(MODELS.carga, 'state', row.state)"/>
+                            </li>
+                        </ul>
+                    </section>
+                </aside>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

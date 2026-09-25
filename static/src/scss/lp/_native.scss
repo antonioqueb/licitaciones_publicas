@@ -1,0 +1,106 @@
+// Vistas nativas del módulo (formularios, listas, kanban, asistentes, calendario) con la misma paleta
+// clínica que los espacios guiados. Se aplican solo a las vistas cuyo arch declara `class="o_lp_view …"`,
+// así el resto de Odoo no cambia. Se reutilizan tal cual los componentes nativos (calendario, selector de
+// fecha, autocompletado, chatter, adjuntos): aquí solo se ajusta su presentación.
+
+.o_lp_view {
+    @include lp-tokens;
+    font-family: var(--lp-font);
+    @include lp-tone-classes;
+
+    // ---------------------------------------------------------------- formulario
+    &.o_form_view {
+        background: var(--lp-bg);
+        .o_form_sheet_bg { background: transparent; padding: 16px 12px 40px; @media (min-width: 1024px) { padding: 20px 28px 48px; } }
+        .o_form_sheet {
+            max-width: 1180px; margin: 0 auto; border: 1px solid var(--lp-border); border-radius: var(--lp-radius); box-shadow: var(--lp-shadow); background: var(--lp-surface); padding: 22px 24px;
+            @media (max-width: 639px) { padding: 16px 14px; border-radius: var(--lp-radius-sm); }
+        }
+        .oe_title h1, h1 { font-size: 24px; font-weight: 700; letter-spacing: -.01em; .o_field_widget input, .o_field_widget span { font-size: 24px; font-weight: 700; } }
+        .o_form_label { color: var(--lp-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+        .o_inner_group { row-gap: 6px; }
+        .o_horizontal_separator { color: var(--lp-primary); font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--lp-border); padding-bottom: 4px; margin: 18px 0 8px; }
+        .o_notebook { margin-top: 18px;
+            .nav-tabs { border-bottom: 1px solid var(--lp-border); gap: 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; }
+                .nav-link { border: 0; border-bottom: 2px solid transparent; color: var(--lp-muted); font-weight: 600; font-size: 13.5px; padding: 10px 14px; white-space: nowrap; &:hover { color: var(--lp-text); } &.active { color: var(--lp-primary); border-bottom-color: var(--lp-primary); background: transparent; } }
+            }
+            .tab-content { padding-top: 14px; }
+        }
+        .o_field_widget input.o_input, .o_field_widget select.o_input, .o_field_widget textarea.o_input, .o_input { border-radius: var(--lp-radius-xs); }
+        .o_field_widget:not(.o_readonly_modifier) input.o_input:focus, .o_field_widget:not(.o_readonly_modifier) textarea.o_input:focus { box-shadow: var(--lp-focus); }
+        .alert { border-radius: var(--lp-radius-sm); border: 0; font-size: 13.5px;
+            &.alert-warning { background: var(--lp-warn-soft); color: var(--lp-warn); }
+            &.alert-info { background: var(--lp-info-soft); color: var(--lp-info); }
+            &.alert-danger { background: var(--lp-danger-soft); color: var(--lp-danger); }
+        }
+        .oe_button_box .oe_stat_button { border-radius: var(--lp-radius-sm); border: 1px solid var(--lp-border); margin: 0 6px 6px 0; .o_stat_text, .o_stat_value { color: var(--lp-text-2); } .fa { color: var(--lp-primary); } &:hover { background: var(--lp-primary-faint); } }
+        .o_list_renderer .o_list_table { font-size: 13px; thead th { background: var(--lp-slate-050); color: var(--lp-muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; } }
+        .o_form_statusbar { background: var(--lp-surface); border-bottom: 1px solid var(--lp-border); }
+    }
+
+    // barra de estado y botones de cabecera (dentro y fuera del sheet)
+    .o_statusbar_status .o_arrow_button { font-weight: 600; font-size: 12.5px;
+        &.o_arrow_button_current { background: var(--lp-primary); color: #fff; &::before { border-left-color: var(--lp-primary); } &::after { border-color: transparent transparent transparent var(--lp-primary); } }
+    }
+    .o_form_statusbar > .o_statusbar_buttons .btn, .o_cp_buttons .btn { border-radius: var(--lp-radius-sm); font-weight: 600; }
+    .btn-primary { background: var(--lp-primary); border-color: var(--lp-primary); &:hover { background: var(--lp-primary-hover); border-color: var(--lp-primary-hover); } }
+    .btn-secondary { border-color: var(--lp-border-strong); color: var(--lp-text-2); background: var(--lp-surface); &:hover { background: var(--lp-primary-faint); color: var(--lp-primary); border-color: var(--lp-primary); } }
+
+    // insignias de selección (state, junta_class, participación, rol)
+    .o_field_badge .badge, .badge.rounded-pill { font-weight: 700; letter-spacing: .01em; border-radius: 999px; padding: 4px 9px; }
+
+    // ---------------------------------------------------------------- lista
+    &.o_list_view {
+        .o_list_renderer { padding: 0 8px 24px; }
+        .o_list_table { font-size: 13px; border-radius: var(--lp-radius-sm); overflow: hidden;
+            thead th { background: var(--lp-slate-050); color: var(--lp-muted); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--lp-border); }
+            tbody tr:hover td { background: var(--lp-primary-faint) !important; }
+            tbody td { padding-top: 9px; padding-bottom: 9px; vertical-align: middle; }
+            .o_data_row.text-warning td { color: var(--lp-warn) !important; }
+            .o_data_row.text-danger td { color: var(--lp-danger) !important; }
+            .o_data_row.text-muted td { color: var(--lp-faint) !important; }
+        }
+    }
+
+    // ---------------------------------------------------------------- kanban
+    &.o_kanban_view {
+        background: var(--lp-bg);
+        .o_kanban_group { background: transparent; }
+        .o_column_title { font-weight: 700; color: var(--lp-text-2); font-size: 13.5px; }
+        .o_kanban_record { border: 1px solid var(--lp-border); border-radius: var(--lp-radius); box-shadow: var(--lp-shadow); padding: 12px 14px; margin-bottom: 10px; &:hover { box-shadow: var(--lp-shadow-lg); } strong { font-family: var(--lp-mono); color: var(--lp-primary); font-size: 12.5px; } }
+    }
+
+    // ---------------------------------------------------------------- calendario (componente nativo, solo paleta)
+    &.o_calendar_view, &.o_calendar_container {
+        .fc .fc-toolbar-title { font-weight: 700; color: var(--lp-text); }
+        .fc .fc-button-primary { background: var(--lp-surface); border-color: var(--lp-border-strong); color: var(--lp-text-2); &.fc-button-active, &:hover { background: var(--lp-primary); border-color: var(--lp-primary); color: #fff; } }
+        .fc .fc-daygrid-day.fc-day-today { background: var(--lp-primary-faint); }
+        .fc .fc-event { border-radius: 6px; font-weight: 600; }
+        .o_calendar_sidebar { background: var(--lp-surface); border-left: 1px solid var(--lp-border); }
+    }
+}
+
+// ---------------------------------------------------------------- asistentes en diálogo
+.o_dialog .modal-content:has(.o_lp_view) {
+    border-radius: var(--lp-radius, 12px);
+    .modal-header { border-bottom: 1px solid #e2e8f0; .modal-title { font-weight: 700; color: #0f172a; } }
+    .modal-footer { border-top: 1px solid #e2e8f0; gap: 6px; .btn { border-radius: 8px; font-weight: 600; } .btn-primary { background: #155e75; border-color: #155e75; } }
+}
+.o_lp_wizard.o_form_view .o_form_sheet_bg { padding: 0; }
+.o_lp_wizard.o_form_view .o_form_sheet { border: 0; box-shadow: none; padding: 16px 18px; max-width: none; }
+.o_lp_wizard.o_form_view .o_form_label { text-transform: none; letter-spacing: 0; font-size: 13px; }
+
+// ---------------------------------------------------------------- pasos informativos de los formularios (guía del renglón)
+.lp_steps {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 14px; color: #334155; font-weight: 600; font-size: 12.5px; counter-reset: lp-step;
+    span { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: #f1f5f9; border: 1px solid #e2e8f0;
+        &::before { counter-increment: lp-step; content: counter(lp-step); width: 22px; height: 22px; border-radius: 50%; background: #155e75; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 11.5px; }
+    }
+}
+.lp_company_chips {
+    .badge { border-radius: 999px; font-weight: 700; padding: 3px 9px; }
+    .lp_principal { background: #d9edf3; color: #0b3d4d; }
+    .lp_secundaria { background: #f1f5f9; color: #334155; }
+}
+.lp_truncate { max-width: 32rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 1024px) { .lp_truncate { max-width: 20rem; } }

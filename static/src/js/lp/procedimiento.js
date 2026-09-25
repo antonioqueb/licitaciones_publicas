@@ -41,7 +41,7 @@ export class LpProcedimiento extends Component {
         this.companies = Object.fromEntries((user.allowedCompanies || []).map((c) => [c.id, c.name]));
         this.state = useState({ loading: true, labels: null, data: null, tab: null, selected: {}, filter: "todas", query: "", busy: false });
         onWillStart(() => this.load(this.props.recordId));
-        onWillUpdateProps((next) => next.recordId !== this.props.recordId && this.load(next.recordId));
+        onWillUpdateProps((next) => { if (next.recordId !== this.props.recordId) return this.load(next.recordId); });
     }
 
     async load(id = this.props.recordId) {
@@ -57,7 +57,7 @@ export class LpProcedimiento extends Component {
             if (data) {
                 const current = this.tabFor(data.record.state);
                 if (!this.state.tab || !this.tabKeys.includes(this.state.tab)) this.state.tab = current;
-                this.env.config && this.env.config.setDisplayName && this.env.config.setDisplayName(data.record.identificador);
+                if (this.env.config && this.env.config.setDisplayName) this.env.config.setDisplayName(data.record.identificador);
             }
         } catch (error) {
             this.lp.notify(error);

@@ -1,0 +1,94 @@
+// Sistema de diseño del módulo Licitaciones: paleta clínica sobria, tipografía, espaciado y
+// radios. Todo se expone como variables CSS bajo `.lp` (espacios guiados) y `.o_lp_view`
+// (vistas nativas restilizadas) para que ambos mundos se vean como una sola aplicación.
+
+$lp-font: "Inter", "Roboto", "Segoe UI", system-ui, -apple-system, sans-serif;
+$lp-mono: "JetBrains Mono", "SFMono-Regular", "Menlo", "Consolas", monospace;
+
+// Paleta: teal clínico (primario), pizarra (neutros), verde quirúrgico (ok), ámbar (aviso), rojo sobrio (peligro).
+$lp-primary-900: #0b3d4d;
+$lp-primary-700: #155e75;
+$lp-primary-600: #1a7189;
+$lp-primary-500: #2a8aa3;
+$lp-primary-100: #d9edf3;
+$lp-primary-050: #eef7fa;
+
+$lp-slate-900: #0f172a;
+$lp-slate-700: #334155;
+$lp-slate-500: #64748b;
+$lp-slate-400: #94a3b8;
+$lp-slate-300: #cbd5e1;
+$lp-slate-200: #e2e8f0;
+$lp-slate-100: #f1f5f9;
+$lp-slate-050: #f7f9fb;
+
+$lp-ok-700: #1f6f4f;
+$lp-ok-100: #dcf1e6;
+$lp-warn-700: #9a5b12;
+$lp-warn-100: #fbecd0;
+$lp-danger-700: #a12a2a;
+$lp-danger-100: #f9dede;
+$lp-info-700: #2c5f8f;
+$lp-info-100: #dfeaf7;
+
+@mixin lp-tokens {
+    --lp-font: #{$lp-font};
+    --lp-mono: #{$lp-mono};
+    --lp-bg: #{$lp-slate-050};
+    --lp-surface: #ffffff;
+    --lp-surface-2: #{$lp-slate-100};
+    --lp-border: #{$lp-slate-200};
+    --lp-border-strong: #{$lp-slate-300};
+    --lp-text: #{$lp-slate-900};
+    --lp-text-2: #{$lp-slate-700};
+    --lp-muted: #{$lp-slate-500};
+    --lp-faint: #{$lp-slate-400};
+
+    --lp-primary: #{$lp-primary-700};
+    --lp-primary-strong: #{$lp-primary-900};
+    --lp-primary-hover: #{$lp-primary-600};
+    --lp-primary-soft: #{$lp-primary-100};
+    --lp-primary-faint: #{$lp-primary-050};
+    --lp-on-primary: #ffffff;
+
+    --lp-ok: #{$lp-ok-700};
+    --lp-ok-soft: #{$lp-ok-100};
+    --lp-warn: #{$lp-warn-700};
+    --lp-warn-soft: #{$lp-warn-100};
+    --lp-danger: #{$lp-danger-700};
+    --lp-danger-soft: #{$lp-danger-100};
+    --lp-info: #{$lp-info-700};
+    --lp-info-soft: #{$lp-info-100};
+    --lp-slate: #{$lp-slate-700};
+    --lp-slate-soft: #{$lp-slate-200};
+
+    --lp-radius: 12px;
+    --lp-radius-sm: 8px;
+    --lp-radius-xs: 6px;
+    --lp-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 16px rgba(15, 23, 42, 0.05);
+    --lp-shadow-lg: 0 8px 30px rgba(11, 61, 77, 0.14);
+    --lp-focus: 0 0 0 3px rgba(42, 138, 163, 0.35);
+    --lp-gap: 16px;
+    --lp-gap-lg: 24px;
+}
+
+// Tonos semánticos: cada componente lee --lp-tone / --lp-tone-soft y cambia con la clase lp-tone--*.
+@mixin lp-tone-classes {
+    .lp-tone--primary { --lp-tone: var(--lp-primary); --lp-tone-soft: var(--lp-primary-soft); }
+    .lp-tone--ok { --lp-tone: var(--lp-ok); --lp-tone-soft: var(--lp-ok-soft); }
+    .lp-tone--warn { --lp-tone: var(--lp-warn); --lp-tone-soft: var(--lp-warn-soft); }
+    .lp-tone--danger { --lp-tone: var(--lp-danger); --lp-tone-soft: var(--lp-danger-soft); }
+    .lp-tone--info { --lp-tone: var(--lp-info); --lp-tone-soft: var(--lp-info-soft); }
+    .lp-tone--slate { --lp-tone: var(--lp-slate); --lp-tone-soft: var(--lp-slate-soft); }
+    .lp-tone--muted { --lp-tone: var(--lp-muted); --lp-tone-soft: var(--lp-surface-2); }
+}
+
+// Puntos de corte: teléfono (< 640), tableta (< 1024), portátil (< 1440), monitor grande (≥ 1440).
+$lp-bp-sm: 640px;
+$lp-bp-md: 1024px;
+$lp-bp-lg: 1440px;
+
+@mixin lp-phone { @media (max-width: #{$lp-bp-sm - 1px}) { @content; } }
+@mixin lp-tablet-down { @media (max-width: #{$lp-bp-md - 1px}) { @content; } }
+@mixin lp-desktop { @media (min-width: #{$lp-bp-md}) { @content; } }
+@mixin lp-wide { @media (min-width: #{$lp-bp-lg}) { @content; } }

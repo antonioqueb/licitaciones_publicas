@@ -1,8 +1,0 @@
-.lp_company_chips {
-    .lp_principal { background: #d1e7dd; color: #0f5132; }
-    .lp_secundaria { background: #ffe5d0; color: #844204; }
-    .badge { white-space: normal; text-align: left; }
-}
-.lp_truncate { max-width: 32rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lp_steps { display: flex; flex-wrap: wrap; gap: 1rem; padding: .75rem 0; color: #714b67; font-weight: 600; }
-@media (max-width: 1024px) { .lp_truncate { max-width: 20rem; } }
