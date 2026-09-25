@@ -12,8 +12,10 @@
     -webkit-font-smoothing: antialiased;
     @include lp-tone-classes;
 
+    color-scheme: light;
     *, *::before, *::after { box-sizing: border-box; }
-    button { font: inherit; color: inherit; }
+    // Especificidad cero: los botones de color definen su propio texto (contraste garantizado).
+    :where(button) { font: inherit; color: inherit; }
     :focus-visible { outline: none; box-shadow: var(--lp-focus); border-radius: var(--lp-radius-xs); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .d-block { display: block; }
@@ -183,8 +185,10 @@ aside.lp-stack { @include lp-desktop { position: sticky; top: 8px; } }
     transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
     &:hover:not(:disabled) { background: var(--lp-border); }
     &:disabled { opacity: .5; cursor: not-allowed; }
-    &--primary { background: var(--lp-primary); color: var(--lp-on-primary); &:hover:not(:disabled) { background: var(--lp-primary-hover); } }
-    &--outline { background: var(--lp-surface); border-color: var(--lp-border-strong); color: var(--lp-primary); &:hover:not(:disabled) { background: var(--lp-primary-faint); border-color: var(--lp-primary); } }
+    // Fondo oscuro → texto claro, siempre (también en hover y foco).
+    &--primary, &--primary:hover, &--primary:focus-visible { background: var(--lp-primary); color: var(--lp-on-primary); .fa { color: inherit; } }
+    &--primary:hover:not(:disabled) { background: var(--lp-primary-hover); }
+    &--outline { background: var(--lp-surface); border-color: var(--lp-border-strong); color: var(--lp-primary); &:hover:not(:disabled) { background: var(--lp-primary-faint); border-color: var(--lp-primary); color: var(--lp-primary-strong); } }
     &--ghost { background: transparent; color: var(--lp-text-2); &:hover:not(:disabled) { background: var(--lp-surface-2); color: var(--lp-text); } }
     &--danger { background: var(--lp-danger-soft); color: var(--lp-danger); &:hover:not(:disabled) { background: var(--lp-danger); color: #fff; } }
     &--sm { padding: 6px 10px; font-size: 12.5px; border-radius: var(--lp-radius-xs); }
@@ -290,7 +294,7 @@ aside.lp-stack { @include lp-desktop { position: sticky; top: 8px; } }
     &--compact { .lp-stepper__step { min-width: 0; } .lp-stepper__hint { display: none; } }
     @include lp-phone { &__hint { display: none; } &__step { min-width: 96px; padding: 6px; } &__line { display: none; } }
 }
-.lp-stepnum { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: var(--lp-primary); color: #fff; align-items: center; justify-content: center; font-size: 13px; }
+.lp-stepnum { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: var(--lp-primary); color: #fff !important; align-items: center; justify-content: center; font-size: 13px; }
 
 // ------------------------------------------------------------------ "ahora toca" y lista de verificación
 .lp-now {
@@ -331,7 +335,7 @@ aside.lp-stack { @include lp-desktop { position: sticky; top: 8px; } }
     &__stage {
         --lp-tone: var(--lp-slate); --lp-tone-soft: var(--lp-slate-soft);
         display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 1px solid var(--lp-border); border-radius: var(--lp-radius-sm);
-        background: var(--lp-surface); cursor: pointer; text-align: left; transition: transform .15s, box-shadow .15s, border-color .15s; position: relative; overflow: hidden;
+        background: var(--lp-surface); color: var(--lp-text); cursor: pointer; text-align: left; transition: transform .15s, box-shadow .15s, border-color .15s; position: relative; overflow: hidden;
         &::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--lp-tone); }
         &:hover { transform: translateY(-1px); box-shadow: var(--lp-shadow); border-color: var(--lp-tone); }
         &--empty { .lp-pipeline__count { color: var(--lp-faint); } }
@@ -344,7 +348,7 @@ aside.lp-stack { @include lp-desktop { position: sticky; top: 8px; } }
 .lp-kpis { display: grid; gap: 10px; grid-template-columns: repeat(5, minmax(0, 1fr)); @include lp-tablet-down { grid-template-columns: repeat(3, minmax(0, 1fr)); } @include lp-phone { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .lp-kpi {
     --lp-tone: var(--lp-slate); --lp-tone-soft: var(--lp-slate-soft);
-    display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: var(--lp-radius); background: var(--lp-surface); border: 1px solid var(--lp-border); box-shadow: var(--lp-shadow); text-align: left; min-width: 0;
+    display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: var(--lp-radius); background: var(--lp-surface); color: var(--lp-text); border: 1px solid var(--lp-border); box-shadow: var(--lp-shadow); text-align: left; min-width: 0;
     &--link { cursor: pointer; transition: transform .15s, box-shadow .15s; &:hover { transform: translateY(-1px); box-shadow: var(--lp-shadow-lg); } }
     &__icon { width: 30px; height: 30px; border-radius: var(--lp-radius-xs); background: var(--lp-tone-soft); color: var(--lp-tone); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 6px; }
     &__value { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; color: var(--lp-text); }

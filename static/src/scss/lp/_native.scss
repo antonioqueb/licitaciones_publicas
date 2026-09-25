@@ -6,6 +6,7 @@
 .o_lp_view {
     @include lp-tokens;
     font-family: var(--lp-font);
+    color-scheme: light;
     @include lp-tone-classes;
 
     // ---------------------------------------------------------------- formulario
@@ -43,7 +44,8 @@
         &.o_arrow_button_current { background: var(--lp-primary); color: #fff; &::before { border-left-color: var(--lp-primary); } &::after { border-color: transparent transparent transparent var(--lp-primary); } }
     }
     .o_form_statusbar > .o_statusbar_buttons .btn, .o_cp_buttons .btn { border-radius: var(--lp-radius-sm); font-weight: 600; }
-    .btn-primary { background: var(--lp-primary); border-color: var(--lp-primary); &:hover { background: var(--lp-primary-hover); border-color: var(--lp-primary-hover); } }
+    .btn-primary, .btn-primary:hover, .btn-primary:focus { background: var(--lp-primary); border-color: var(--lp-primary); color: #fff; }
+    .btn-primary:hover { background: var(--lp-primary-hover); border-color: var(--lp-primary-hover); }
     .btn-secondary { border-color: var(--lp-border-strong); color: var(--lp-text-2); background: var(--lp-surface); &:hover { background: var(--lp-primary-faint); color: var(--lp-primary); border-color: var(--lp-primary); } }
 
     // insignias de selección (state, junta_class, participación, rol)
@@ -84,7 +86,7 @@
 .o_dialog .modal-content:has(.o_lp_view) {
     border-radius: var(--lp-radius, 12px);
     .modal-header { border-bottom: 1px solid #e2e8f0; .modal-title { font-weight: 700; color: #0f172a; } }
-    .modal-footer { border-top: 1px solid #e2e8f0; gap: 6px; .btn { border-radius: 8px; font-weight: 600; } .btn-primary { background: #155e75; border-color: #155e75; } }
+    .modal-footer { border-top: 1px solid #e2e8f0; gap: 6px; .btn { border-radius: 8px; font-weight: 600; } .btn-primary { background: #155e75; border-color: #155e75; color: #fff; } }
 }
 .o_lp_wizard.o_form_view .o_form_sheet_bg { padding: 0; }
 .o_lp_wizard.o_form_view .o_form_sheet { border: 0; box-shadow: none; padding: 16px 18px; max-width: none; }
