@@ -8,8 +8,11 @@ LP_VIEW_CLASS = 'o_lp_view'  # sistema de diseño clínico: static/src/scss/lp/_
 
 
 def styled(model, arch):
-    """Añade la clase del sistema de diseño a la raíz de form/list/kanban/calendar (los asistentes son compactos)."""
-    match = re.match(r'<(form|list|kanban|calendar)\b', arch)
+    """Añade la clase del sistema de diseño a la raíz de form/list/kanban (los asistentes son compactos).
+
+    El esquema RelaxNG de Odoo 19 no admite `class` en <calendar>: la agenda conserva el calendario nativo.
+    """
+    match = re.match(r'<(form|list|kanban)\b', arch)
     if not match or ' class="' in arch[:arch.index('>')]:
         return arch
     classes = LP_VIEW_CLASS + (' o_lp_wizard' if model.endswith('.wizard') else '')
