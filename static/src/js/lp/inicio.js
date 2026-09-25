@@ -1,12 +1,14 @@
 /** @odoo-module **/
 import { Component, onWillStart, useState } from "@odoo/owl";
 import { user } from "@web/core/user";
-import { DateTime } from "luxon";
 import { LpHeader } from "./header";
 import { LpKpi, LpEmpty, LpAvatar } from "./components";
 import { useLp } from "./nav";
 import { loadInicio, loadLabels, label, MODELS } from "./data";
 import { PROC_FLOW, PROC_META, JUNTA_META, EXP_META, CARGA_STATE_META, INCIDENCIA_META, m2o, fmtDateTime, fmtDate, relative, dateTone, toDateTime, tone } from "./meta";
+
+// En Odoo 19 luxon es un global del cliente web, no un módulo importable.
+const { DateTime } = luxon;
 
 /** Tablero de inicio: qué requiere decisión hoy, agenda de la semana y accesos guiados. */
 export class LpInicio extends Component {

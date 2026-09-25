@@ -8,7 +8,9 @@
  */
 import { _t } from "@web/core/l10n/translation";
 import { deserializeDate, deserializeDateTime, formatDate, formatDateTime } from "@web/core/l10n/dates";
-import { DateTime } from "luxon";
+
+// En Odoo 19 luxon es un global del cliente web, no un módulo importable.
+const { DateTime } = luxon;
 
 export const HUB_TAG = "licitaciones_publicas.hub";
 

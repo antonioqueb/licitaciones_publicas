@@ -1,6 +1,5 @@
 /** @odoo-module **/
 import { Component, onWillStart, useState } from "@odoo/owl";
-import { DateTime } from "luxon";
 import { user } from "@web/core/user";
 import { DateTimeInput } from "@web/core/datetime/datetime_input";
 import { serializeDate } from "@web/core/l10n/dates";
@@ -9,6 +8,9 @@ import { LpStepper, LpDropzone, LpEmpty } from "./components";
 import { useLp } from "./nav";
 import { loadLabels, label, loadCargasDelArchivo, MODELS, CARGA_FIELDS } from "./data";
 import { CARGA_STATE_META, m2o, fmtDate, fmtDateTime, relative } from "./meta";
+
+// En Odoo 19 luxon es un global del cliente web, no un módulo importable.
+const { DateTime } = luxon;
 
 const ZONAS = ["America/Mexico_City", "America/Monterrey", "America/Chihuahua", "America/Hermosillo", "America/Tijuana", "America/Cancun", "America/Merida"];
 

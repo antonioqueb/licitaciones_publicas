@@ -16,7 +16,8 @@ const strip = (source) => source
     .replace(/^import [^;]*;$/gm, '')
     .replace(/^export (class|function|const|async function) /gm, '$1 ')
     .replace(/^export function /gm, 'function ')
-    .replace(/^const ([A-Z_]+) = /gm, 'var $1 = ');
+    .replace(/^const ([A-Z_]+) = /gm, 'var $1 = ')
+    .replace(/^const \{ DateTime \} = luxon;$/gm, '');  // el harness ya declara DateTime
 
 const tick = (ms = 25) => new Promise((resolve) => setTimeout(resolve, ms));
 

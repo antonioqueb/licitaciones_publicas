@@ -6,9 +6,11 @@
  * existentes, siempre con los permisos y reglas por empresa del usuario. Las acciones de negocio se
  * siguen ejecutando con los métodos del servidor (`action_*`) desde cada pantalla.
  */
-import { DateTime } from "luxon";
 import { serializeDateTime } from "@web/core/l10n/dates";
 import { m2o } from "./meta";
+
+// En Odoo 19 luxon es un global del cliente web, no un módulo importable.
+const { DateTime } = luxon;
 
 export const MODELS = {
     proc: "licitacion.procedimiento",
