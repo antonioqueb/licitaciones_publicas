@@ -56,5 +56,9 @@ la pantalla (`nav.js`).
 - `node --check` de cada archivo JS.
 - Compilación de las 14 plantillas OWL con el OWL de Odoo 19 en jsdom y de los tres SCSS con
   dart-sass, sin errores.
+- `tests/lp_smoke.cjs` (node + jsdom + luxon + OWL de Odoo 19): monta los seis espacios con servicios
+  simulados y ejecuta cribar, participamos, propagar, asignar renglón, enviar carta, reporte PDF y la
+  carga en tres pasos; en verde el 25 de septiembre de 2026. Los bundles CSS/JS también se compilaron en
+  QA con el libsass del servidor (429 reglas `.lp-`, 96 `.o_lp_view`, cero errores).
 - Sin instancia Odoo local: la revisión visual se hace en QA (`https://2.24.78.58:1401/odoo`) antes
   de producción. Las pruebas Odoo del módulo no cambian porque la lógica no cambia.
