@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.Inicio">
+    <div class="lp-page">
+        <LpHeader current="'inicio'" eyebrow="today" title="greeting"
+                  subtitle="company ? company + ' · ' + enCurso + ' procedimiento(s) en curso' : enCurso + ' procedimiento(s) en curso'">
+            <t t-set-slot="actions">
+                <button type="button" class="lp-btn lp-btn--ghost" t-on-click="() => this.state.guide = !this.state.guide" t-att-aria-expanded="state.guide ? 'true' : 'false'">
+                    <i class="fa fa-question-circle-o" aria-hidden="true"/> ¿Cómo funciona?
+                </button>
+                <button type="button" class="lp-btn lp-btn--primary" t-on-click="() => this.lp.goCarga()">
+                    <i class="fa fa-cloud-upload" aria-hidden="true"/> Nueva carga
+                </button>
+            </t>
+        </LpHeader>
+
+        <div t-if="state.loading" class="lp-loading"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando el tablero…</div>
+
+        <div t-elif="state.data" class="lp-page__body">
+
+            <!-- guía de onboarding -->
+            <section t-if="state.guide" class="lp-card lp-guide" aria-label="Cómo funciona">
+                <h2 class="lp-card__title"><i class="fa fa-map-o" aria-hidden="true"/> El flujo de una licitación</h2>
+                <ol class="lp-guide__steps">
+                    <li><strong>Carga</strong> el Excel del portal ComprasMX. El sistema detecta el tipo de archivo, compara con la carga anterior y muestra nuevos, cambios y ausencias antes de confirmar.</li>
+                    <li><strong>Criba</strong> cada procedimiento detectado: participamos, descartar o no viable, siempre con motivo.</li>
+                    <li><strong>Renglones:</strong> asigna empresas (la primera es principal) y proveedores a cada partida. Genera los expedientes.</li>
+                    <li><strong>Expedientes</strong> por empresa: preguntas para la junta, costeo, documentos de proveedores y propios, cartas de apoyo.</li>
+                    <li><strong>Propuesta</strong> cuando no quedan bloqueantes, y <strong>fallo</strong> al cierre. Nada se borra: todo queda como evidencia.</li>
+                </ol>
+            </section>
+
+            <!-- flujo con conteos -->
+            <section class="lp-card lp-pipeline" aria-label="Procedimientos por etapa">
+                <div class="lp-card__head">
+                    <h2 class="lp-card__title">Procedimientos por etapa</h2>
+                    <button type="button" class="lp-link" t-on-click="() => this.lp.goProcedimientos()">Ver todos <i class="fa fa-angle-right" aria-hidden="true"/></button>
+                </div>
+                <div class="lp-pipeline__track">
+                    <t t-foreach="flow" t-as="key" t-key="key">
+                        <button type="button" class="lp-pipeline__stage" t-attf-class="lp-tone--{{meta[key].tone}}" t-att-class="{'lp-pipeline__stage--empty': !count(key)}"
+                                t-on-click="() => this.lp.goProcedimientos({ state: key })" t-att-title="meta[key].hint">
+                            <span class="lp-pipeline__icon"><i t-attf-class="fa {{meta[key].icon}}" aria-hidden="true"/></span>
+                            <span class="lp-pipeline__count" t-esc="count(key)"/>
+                            <span class="lp-pipeline__label" t-esc="label(MODELS.proc, 'state', key)"/>
+                        </button>
+                    </t>
+                </div>
+                <div class="lp-pipeline__closed">
+                    <button type="button" class="lp-chip lp-chip--muted" t-on-click="() => this.lp.goProcedimientos({ state: 'descartado' })"><i class="fa fa-ban" aria-hidden="true"/> Descartados <b t-esc="count('descartado')"/></button>
+                    <button type="button" class="lp-chip lp-chip--danger" t-on-click="() => this.lp.goProcedimientos({ state: 'no_viable' })"><i class="fa fa-times-circle-o" aria-hidden="true"/> No viables <b t-esc="count('no_viable')"/></button>
+                </div>
+            </section>
+
+            <!-- indicadores -->
+            <section class="lp-kpis" aria-label="Alertas">
+                <LpKpi value="state.data.urgentes" label="'Juntas en 72 h'" icon="'fa-exclamation-triangle'" tone="state.data.urgentes ? 'warn' : 'ok'" hint="'Procedimientos en curso'" onClick="() => this.lp.goProcedimientos({ junta: 'urgente', state: '__relevantes' })"/>
+                <LpKpi value="state.data.vencidas" label="'Vencidas sin decidir'" icon="'fa-calendar-times-o'" tone="state.data.vencidas ? 'danger' : 'ok'" hint="'Detectados con junta pasada'" onClick="() => this.lp.goProcedimientos({ junta: 'vencida', state: 'detectado' })"/>
+                <LpKpi value="state.data.bloqueantes" label="'Incidencias bloqueantes'" icon="'fa-exclamation-circle'" tone="state.data.bloqueantes ? 'danger' : 'ok'" hint="'Abiertas en cualquier carga'" onClick="() => this.lp.openXmlAction('licitaciones_publicas.action_incidencias', { clearBreadcrumbs: true })"/>
+                <LpKpi value="state.data.expedientes.length" label="'Expedientes en armado'" icon="'fa-folder-open-o'" tone="'info'" hint="'En armado o listos'" onClick="() => this.lp.goExpedientes({ state: 'en_armado' })"/>
+                <LpKpi value="state.data.cargas.length" label="'Cargas sin cerrar'" icon="'fa-cloud-upload'" tone="state.data.cargas.length ? 'warn' : 'slate'" hint="'Borrador, previsualizada o sin asignar'" onClick="() => this.lp.openXmlAction('licitaciones_publicas.action_cargas', { clearBreadcrumbs: true })"/>
+            </section>
+
+            <div class="lp-grid lp-grid--main">
+                <!-- columna principal -->
+                <div class="lp-stack">
+                    <section class="lp-card" aria-label="Requieren decisión">
+                        <div class="lp-card__head">
+                            <h2 class="lp-card__title"><i class="fa fa-search" aria-hidden="true"/> Requieren tu decisión</h2>
+                            <button type="button" class="lp-link" t-on-click="() => this.lp.goProcedimientos({ state: 'detectado' })">Todos los detectados <i class="fa fa-angle-right" aria-hidden="true"/></button>
+                        </div>
+                        <LpEmpty t-if="!state.data.atencion.length" compact="true" icon="'fa-check'" title="'Sin procedimientos por cribar'" text="'Todo lo detectado ya tiene decisión. Sube una nueva carga cuando el portal publique más.'"/>
+                        <ul t-else="" class="lp-rows">
+                            <li t-foreach="state.data.atencion" t-as="row" t-key="row.id" class="lp-row">
+                                <button type="button" class="lp-row__main" t-on-click="() => this.openProc(row)">
+                                    <span class="lp-row__id" t-esc="row.identificador"/>
+                                    <span class="lp-row__title" t-esc="row.nombre_publicado"/>
+                                    <span class="lp-row__meta">
+                                        <t t-esc="name(row.unidad_compradora_id) || 'Sin unidad compradora'"/>
+                                        <t t-if="row.fecha_junta_aclaraciones"> · junta <t t-esc="relative(row.fecha_junta_aclaraciones)"/></t>
+                                    </span>
+                                </button>
+                                <span class="lp-badge" t-attf-class="lp-tone--{{juntaMeta[row.junta_class].tone}}"><i t-attf-class="fa {{juntaMeta[row.junta_class].icon}}" aria-hidden="true"/> <t t-esc="label(MODELS.proc, 'junta_class', row.junta_class)"/></span>
+                                <button type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-on-click="() => this.cribar(row)"><i class="fa fa-filter" aria-hidden="true"/> Cribar</button>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section class="lp-card" aria-label="En curso">
+                        <div class="lp-card__head">
+                            <h2 class="lp-card__title"><i class="fa fa-clock-o" aria-hidden="true"/> Actividad reciente</h2>
+                        </div>
+                        <LpEmpty t-if="!state.data.recientes.length" compact="true" icon="'fa-inbox'" title="'Todavía no hay procedimientos'" text="'Comienza con una carga del listado del portal.'" actionLabel="'Nueva carga'" onAction="() => this.lp.goCarga()"/>
+                        <ul t-else="" class="lp-rows">
+                            <li t-foreach="state.data.recientes" t-as="row" t-key="row.id" class="lp-row">
+                                <button type="button" class="lp-row__main" t-on-click="() => this.openProc(row)">
+                                    <span class="lp-row__id" t-esc="row.identificador"/>
+                                    <span class="lp-row__title" t-esc="row.nombre_publicado"/>
+                                    <span class="lp-row__meta">Actualizado <t t-esc="relative(row.write_date)"/> · <t t-esc="row.renglones_con_empresa_count"/>/<t t-esc="row.renglones_count"/> renglones con empresa</span>
+                                </button>
+                                <span class="lp-badge" t-attf-class="lp-tone--{{meta[row.state].tone}}" t-esc="label(MODELS.proc, 'state', row.state)"/>
+                                <LpAvatar name="name(row.user_id)" small="true"/>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section class="lp-card" aria-label="Expedientes en armado">
+                        <div class="lp-card__head">
+                            <h2 class="lp-card__title"><i class="fa fa-folder-open-o" aria-hidden="true"/> Expedientes en armado</h2>
+                            <button type="button" class="lp-link" t-on-click="() => this.lp.goExpedientes()">Todos <i class="fa fa-angle-right" aria-hidden="true"/></button>
+                        </div>
+                        <LpEmpty t-if="!state.data.expedientes.length" compact="true" icon="'fa-folder-o'" title="'Sin expedientes en armado'" text="'Se crean desde el procedimiento al generar expedientes.'"/>
+                        <ul t-else="" class="lp-rows">
+                            <li t-foreach="state.data.expedientes" t-as="row" t-key="row.id" class="lp-row">
+                                <button type="button" class="lp-row__main" t-on-click="() => this.openExp(row)">
+                                    <span class="lp-row__id" t-esc="row.folio"/>
+                                    <span class="lp-row__title"><t t-esc="name(row.company_id)"/> · <t t-esc="name(row.procedimiento_id)"/></span>
+                                    <span class="lp-row__meta" t-if="row.bloqueantes_pendientes"><i class="fa fa-exclamation-circle text-danger" aria-hidden="true"/> <t t-esc="bloqueantes(row)"/> bloqueante(s) pendiente(s)</span>
+                                    <span class="lp-row__meta" t-else=""><i class="fa fa-check text-success" aria-hidden="true"/> Sin bloqueantes</span>
+                                </button>
+                                <span class="lp-badge" t-attf-class="lp-tone--{{expMeta[row.state].tone}}" t-esc="label(MODELS.exp, 'state', row.state)"/>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+
+                <!-- columna lateral -->
+                <aside class="lp-stack">
+                    <section class="lp-card" aria-label="Agenda de la semana">
+                        <div class="lp-card__head">
+                            <h2 class="lp-card__title"><i class="fa fa-calendar" aria-hidden="true"/> Próximos 7 días</h2>
+                            <button type="button" class="lp-link" t-on-click="() => this.lp.openXmlAction('licitaciones_publicas.action_agenda', { clearBreadcrumbs: true })">Calendario <i class="fa fa-angle-right" aria-hidden="true"/></button>
+                        </div>
+                        <LpEmpty t-if="!agendaDays.length" compact="true" icon="'fa-calendar-o'" title="'Semana sin fechas fatales'" text="'No hay juntas, aperturas ni fallos en los próximos siete días.'"/>
+                        <div t-else="" class="lp-agenda">
+                            <div t-foreach="agendaDays" t-as="day" t-key="day.key" class="lp-agenda__day">
+                                <div class="lp-agenda__dayhead"><span t-esc="day.label"/><small t-esc="day.relative"/></div>
+                                <button t-foreach="day.items" t-as="item" t-key="item.id" type="button" class="lp-agenda__item" t-attf-class="lp-tone--{{item.tone}}" t-on-click="() => this.openProc(item)">
+                                    <span class="lp-agenda__time" t-esc="item.time"/>
+                                    <span class="lp-agenda__body">
+                                        <span class="lp-agenda__type" t-esc="label(MODELS.fecha, 'tipo', item.tipo)"/>
+                                        <span class="lp-agenda__proc" t-esc="item.proc.name"/>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="lp-card" aria-label="Incidencias abiertas">
+                        <div class="lp-card__head">
+                            <h2 class="lp-card__title"><i class="fa fa-exclamation-circle" aria-hidden="true"/> Incidencias abiertas</h2>
+                            <button type="button" class="lp-link" t-on-click="() => this.lp.openXmlAction('licitaciones_publicas.action_incidencias', { clearBreadcrumbs: true })">Todas <i class="fa fa-angle-right" aria-hidden="true"/></button>
+                        </div>
+                        <LpEmpty t-if="!state.data.incidencias.length" compact="true" icon="'fa-check'" title="'Sin incidencias abiertas'"/>
+                        <ul t-else="" class="lp-rows lp-rows--tight">
+                            <li t-foreach="state.data.incidencias" t-as="row" t-key="row.id" class="lp-row">
+                                <button type="button" class="lp-row__main" t-on-click="() => this.openIncidencia(row)">
+                                    <span class="lp-row__title"><t t-esc="row.campo"/> <span class="lp-badge lp-badge--xs" t-attf-class="lp-tone--{{row.severidad === 'bloqueante' ? 'danger' : 'warn'}}" t-esc="label(MODELS.incidencia, 'severidad', row.severidad)"/></span>
+                                    <span class="lp-row__meta"><t t-esc="name(row.procedimiento_id) || row.identificador_observado"/> · <t t-esc="relative(row.create_date)"/></span>
+                                </button>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section class="lp-card" aria-label="Cargas">
+                        <div class="lp-card__head">
+                            <h2 class="lp-card__title"><i class="fa fa-cloud-upload" aria-hidden="true"/> Cargas</h2>
+                            <button type="button" class="lp-link" t-on-click="() => this.lp.openXmlAction('licitaciones_publicas.action_cargas', { clearBreadcrumbs: true })">Historial <i class="fa fa-angle-right" aria-hidden="true"/></button>
+                        </div>
+                        <ul class="lp-rows lp-rows--tight">
+                            <li t-if="state.data.ultimaCarga" class="lp-row">
+                                <button type="button" class="lp-row__main" t-on-click="() => this.openCarga(state.data.ultimaCarga)">
+                                    <span class="lp-row__title">Última confirmada: <t t-esc="state.data.ultimaCarga.archivo_nombre"/></span>
+                                    <span class="lp-row__meta"><t t-esc="fmtDate(state.data.ultimaCarga.fecha_snapshot)"/> · <t t-esc="state.data.ultimaCarga.resumen"/></span>
+                                </button>
+                            </li>
+                            <li t-foreach="state.data.cargas" t-as="row" t-key="row.id" class="lp-row">
+                                <button type="button" class="lp-row__main" t-on-click="() => this.openCarga(row)">
+                                    <span class="lp-row__title" t-esc="row.archivo_nombre"/>
+                                    <span class="lp-row__meta"><t t-esc="fmtDate(row.fecha_snapshot)"/> · <t t-esc="name(row.user_id)"/></span>
+                                </button>
+                                <span class="lp-badge" t-attf-class="lp-tone--{{cargaMeta[row.state].tone}}" t-esc="label(MODELS.carga, 'state', row.state)"/>
+                            </li>
+                            <li t-if="!state.data.ultimaCarga and !state.data.cargas.length" class="lp-row lp-row--empty">Todavía no hay cargas. <button type="button" class="lp-link" t-on-click="() => this.lp.goCarga()">Subir la primera</button></li>
+                        </ul>
+                    </section>
+                </aside>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

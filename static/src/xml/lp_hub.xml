@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.Hub">
+    <div class="o_action lp" t-attf-class="lp--{{view}}">
+        <LpInicio t-if="view === 'inicio'"/>
+        <LpProcedimientos t-elif="view === 'procedimientos'" filters="filters"/>
+        <LpProcedimiento t-elif="view === 'procedimiento'" recordId="recordId"/>
+        <LpExpedientes t-elif="view === 'expedientes'" filters="filters"/>
+        <LpExpediente t-elif="view === 'expediente'" recordId="recordId"/>
+        <LpCarga t-elif="view === 'carga'"/>
+    </div>
+</t>
+
+<t t-name="licitaciones_publicas.LpHeader">
+    <header class="lp-page__head" t-attf-class="lp-page__head--{{props.tone || 'primary'}}">
+        <nav class="lp-tabs" aria-label="Espacios de licitaciones">
+            <t t-foreach="tabs" t-as="tab" t-key="tab.key">
+                <button type="button" class="lp-tabs__tab" t-att-class="{'lp-tabs__tab--active': tab.key === props.current}"
+                        t-att-aria-current="tab.key === props.current ? 'page' : false" t-on-click="tab.go">
+                    <i t-attf-class="fa {{tab.icon}}" aria-hidden="true"/> <span t-esc="tab.label"/>
+                </button>
+            </t>
+        </nav>
+        <div class="lp-page__titles">
+            <span t-if="props.eyebrow" class="lp-page__eyebrow" t-esc="props.eyebrow"/>
+            <h1 class="lp-page__title" t-esc="props.title"/>
+            <p t-if="props.subtitle" class="lp-page__subtitle" t-esc="props.subtitle"/>
+        </div>
+        <div class="lp-page__actions">
+            <t t-slot="actions"/>
+        </div>
+    </header>
+</t>
+
+</templates>

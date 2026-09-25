@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.Procedimiento">
+    <div class="lp-page">
+        <div t-if="state.loading and !state.data" class="lp-loading"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando el procedimiento…</div>
+        <LpEmpty t-elif="!state.data" icon="'fa-search'" title="'Procedimiento no disponible'" text="'No existe o pertenece a empresas que no tienes activas.'" actionLabel="'Ir a procedimientos'" onAction="() => this.lp.goProcedimientos()"/>
+        <t t-else="">
+            <LpHeader current="'procedimientos'" tone="meta[rec.state].tone"
+                      eyebrow="(name(rec.unidad_compradora_id) || 'Procedimiento') + (name(rec.entidad_id) ? ' · ' + name(rec.entidad_id) : '')"
+                      title="rec.identificador" subtitle="rec.nombre_publicado">
+                <t t-set-slot="actions">
+                    <button type="button" class="lp-btn lp-btn--ghost" t-on-click="openFicha" title="Formulario completo con chatter e historial"><i class="fa fa-file-text-o" aria-hidden="true"/> Ficha completa</button>
+                    <button type="button" class="lp-btn lp-btn--outline" t-on-click="cribar"><i class="fa fa-filter" aria-hidden="true"/> Cribar</button>
+                    <button t-if="primaryAction" type="button" class="lp-btn lp-btn--primary" t-on-click="primaryAction.run"><i t-attf-class="fa {{primaryAction.icon}}" aria-hidden="true"/> <t t-esc="primaryAction.label"/></button>
+                </t>
+            </LpHeader>
+
+            <div class="lp-page__body" t-att-aria-busy="state.loading ? 'true' : 'false'">
+                <!-- paso a paso -->
+                <section class="lp-card lp-card--flush" aria-label="Etapas">
+                    <LpStepper steps="steps" current="current" reached="currentIndex" terminal="terminal" onSelect="(key) => this.selectStep(key)"/>
+                </section>
+
+                <!-- cierre por criba -->
+                <section t-if="terminal" class="lp-banner" t-attf-class="lp-banner--{{meta[rec.state].tone}}" role="status">
+                    <span class="lp-banner__icon"><i t-attf-class="fa {{meta[rec.state].icon}}" aria-hidden="true"/></span>
+                    <div class="lp-banner__body">
+                        <strong t-esc="label(MODELS.proc, 'state', rec.state)"/>
+                        <span t-if="name(rec.motivo_descarte_id)"> · Motivo: <t t-esc="name(rec.motivo_descarte_id)"/></span>
+                        <p t-if="rec.nota_criba" class="lp-banner__text" t-esc="rec.nota_criba"/>
+                        <p class="lp-banner__text" t-esc="meta[rec.state].hint"/>
+                        <p t-if="rec.state === 'descartado' and rec.reapertura_habilitada" class="lp-banner__text"><i class="fa fa-bell-o" aria-hidden="true"/> El portal publicó fechas límite nuevas: puedes retomarlo con Cribar.</p>
+                    </div>
+                </section>
+
+                <!-- qué toca ahora -->
+                <section t-else="" class="lp-now" t-attf-class="lp-now--{{meta[rec.state].tone}}" aria-label="Qué toca ahora">
+                    <div class="lp-now__head">
+                        <span class="lp-now__eyebrow">Ahora toca</span>
+                        <h2 class="lp-now__title"><i t-attf-class="fa {{meta[rec.state].icon}}" aria-hidden="true"/> <t t-esc="label(MODELS.proc, 'state', rec.state)"/></h2>
+                        <p class="lp-now__hint" t-esc="meta[rec.state].hint"/>
+                    </div>
+                    <ul t-if="checklist.length" class="lp-check">
+                        <li t-foreach="checklist" t-as="item" t-key="item_index" class="lp-check__item" t-att-class="{'lp-check__item--done': item.done}">
+                            <span class="lp-check__mark"><i t-attf-class="fa {{item.done ? 'fa-check' : 'fa-circle-o'}}" aria-hidden="true"/></span>
+                            <span class="lp-check__text"><t t-esc="item.text"/><small t-if="item.hint and !item.done" t-esc="item.hint"/></span>
+                        </li>
+                    </ul>
+                    <div class="lp-now__actions">
+                        <t t-if="rec.state === 'detectado'">
+                            <button type="button" class="lp-btn lp-btn--primary" t-on-click="participar"><i class="fa fa-check" aria-hidden="true"/> Participamos</button>
+                            <button type="button" class="lp-btn lp-btn--outline" t-on-click="cribar"><i class="fa fa-filter" aria-hidden="true"/> Descartar o no viable…</button>
+                        </t>
+                        <t t-elif="rec.state === 'analisis'">
+                            <button type="button" class="lp-btn lp-btn--outline" t-on-click="() => this.state.tab = 'renglones'"><i class="fa fa-list-ol" aria-hidden="true"/> Ir a renglones</button>
+                            <button type="button" class="lp-btn lp-btn--primary" t-on-click="generar"><i class="fa fa-folder-open-o" aria-hidden="true"/> Generar expedientes</button>
+                        </t>
+                        <t t-elif="rec.state === 'preguntas'">
+                            <button type="button" class="lp-btn lp-btn--outline" t-on-click="generar" title="Crea los expedientes y cartas que falten sin duplicar los existentes"><i class="fa fa-refresh" aria-hidden="true"/> Regenerar expedientes</button>
+                            <button type="button" class="lp-btn lp-btn--primary" t-on-click="avanzar"><i class="fa fa-arrow-right" aria-hidden="true"/> Pasar a costeo</button>
+                        </t>
+                        <t t-elif="rec.state === 'costeo'">
+                            <button type="button" class="lp-btn lp-btn--primary" t-on-click="avanzar"><i class="fa fa-arrow-right" aria-hidden="true"/> Pasar a propuesta</button>
+                        </t>
+                        <t t-elif="rec.state === 'propuesta'">
+                            <button type="button" class="lp-btn lp-btn--primary" t-on-click="avanzar"><i class="fa fa-gavel" aria-hidden="true"/> Registrar fallo</button>
+                        </t>
+                    </div>
+                </section>
+
+                <div class="lp-grid lp-grid--detail">
+                    <!-- columna principal -->
+                    <div class="lp-stack">
+                        <div class="lp-subtabs" role="tablist">
+                            <button type="button" class="lp-subtabs__tab" role="tab" t-att-aria-selected="state.tab === 'criba' ? 'true' : 'false'" t-att-class="{'lp-subtabs__tab--active': state.tab === 'criba'}" t-on-click="() => this.state.tab = 'criba'"><i class="fa fa-info-circle" aria-hidden="true"/> Datos del portal</button>
+                            <button type="button" class="lp-subtabs__tab" role="tab" t-att-aria-selected="state.tab === 'renglones' ? 'true' : 'false'" t-att-class="{'lp-subtabs__tab--active': state.tab === 'renglones'}" t-on-click="() => this.state.tab = 'renglones'"><i class="fa fa-list-ol" aria-hidden="true"/> Renglones <b class="lp-count" t-esc="partidas.length"/></button>
+                            <button type="button" class="lp-subtabs__tab" role="tab" t-att-aria-selected="state.tab === 'expedientes' ? 'true' : 'false'" t-att-class="{'lp-subtabs__tab--active': state.tab === 'expedientes'}" t-on-click="() => this.state.tab = 'expedientes'"><i class="fa fa-folder-open-o" aria-hidden="true"/> Expedientes <b class="lp-count" t-esc="expedientes.length"/></button>
+                        </div>
+
+                        <!-- datos del portal -->
+                        <section t-if="state.tab === 'criba'" class="lp-card" aria-label="Datos del portal">
+                            <dl class="lp-facts">
+                                <div><dt>Unidad compradora</dt><dd t-esc="name(rec.unidad_compradora_id) || '—'"/></div>
+                                <div><dt>Entidad</dt><dd t-esc="name(rec.entidad_id) || '—'"/></div>
+                                <div><dt>Contratación</dt><dd t-esc="name(rec.tipo_contratacion_id) || '—'"/></div>
+                                <div><dt>Estatus del portal</dt><dd t-esc="name(rec.estatus_portal_id) || '—'"/></div>
+                                <div><dt>Prefijo · carácter · ejercicio</dt><dd><t t-esc="rec.tipo_procedimiento || '—'"/> · <t t-esc="rec.caracter || '—'"/> · <t t-esc="rec.ejercicio || '—'"/></dd></div>
+                                <div><dt>Prefijo de catálogo</dt><dd t-esc="name(rec.tipo_procedimiento_id) || 'Sin registrar'"/></div>
+                                <div><dt>Carácter de catálogo</dt><dd t-esc="name(rec.caracter_procedimiento_id) || 'Sin registrar'"/></div>
+                                <div><dt>Código del expediente</dt><dd t-esc="rec.codigo_expediente || '—'"/></div>
+                                <div><dt>Sigue en el portal</dt><dd><t t-if="rec.sigue_apareciendo">Sí</t><t t-else="">No, ausente desde <t t-esc="fmtDate(rec.fecha_ya_no_aparece)"/></t></dd></div>
+                                <div><dt>Cargas que lo registraron</dt><dd><button type="button" class="lp-link" t-on-click="openCargas"><t t-esc="state.data.apariciones"/> carga(s)</button></dd></div>
+                            </dl>
+                            <div t-if="name(rec.motivo_descarte_id) or rec.nota_criba" class="lp-note">
+                                <strong>Última criba:</strong> <t t-esc="name(rec.motivo_descarte_id)"/> <span t-if="rec.nota_criba" t-esc="rec.nota_criba"/>
+                            </div>
+                        </section>
+
+                        <!-- renglones -->
+                        <section t-if="state.tab === 'renglones'" class="lp-card" aria-label="Renglones">
+                            <div t-if="!editable" class="lp-note lp-note--info"><i class="fa fa-lock" aria-hidden="true"/>
+                                <t t-if="rec.state === 'detectado'">Confirma «Participamos» para asignar empresas y proveedores a los renglones.</t>
+                                <t t-else="">El procedimiento está cerrado: los renglones se consultan pero no se editan.</t>
+                            </div>
+                            <div class="lp-toolbar lp-toolbar--inner">
+                                <label class="lp-search"><i class="fa fa-search" aria-hidden="true"/><input type="search" class="lp-input" placeholder="Clave, partida o descripción…" t-att-value="state.query" t-on-input="(ev) => this.state.query = ev.target.value" aria-label="Buscar renglones"/></label>
+                                <div class="lp-toolbar__group" role="group" aria-label="Filtro">
+                                    <button type="button" class="lp-chip" t-att-class="{'lp-chip--active': state.filter === 'todas'}" t-on-click="() => this.state.filter = 'todas'">Todos</button>
+                                    <button type="button" class="lp-chip lp-chip--warn" t-att-class="{'lp-chip--active': state.filter === 'sin_empresa'}" t-on-click="() => this.state.filter = 'sin_empresa'">Sin empresa</button>
+                                    <button type="button" class="lp-chip lp-chip--ok" t-att-class="{'lp-chip--active': state.filter === 'con_empresa'}" t-on-click="() => this.state.filter = 'con_empresa'">Con empresa</button>
+                                    <button type="button" class="lp-chip lp-chip--danger" t-att-class="{'lp-chip--active': state.filter === 'descartadas'}" t-on-click="() => this.state.filter = 'descartadas'">Descartados</button>
+                                    <button type="button" class="lp-chip lp-chip--muted" t-att-class="{'lp-chip--active': state.filter === 'pendientes'}" t-on-click="() => this.state.filter = 'pendientes'">Cantidad pendiente</button>
+                                </div>
+                                <div t-if="editable" class="lp-toolbar__group">
+                                    <button type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-att-disabled="selectedIds.length &lt; 2" t-on-click="() => this.propagar('empresas')" title="Copia las empresas de un renglón fuente a los demás seleccionados"><i class="fa fa-clone" aria-hidden="true"/> Propagar empresas</button>
+                                    <button type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-att-disabled="selectedIds.length &lt; 2" t-on-click="() => this.propagar('proveedores')"><i class="fa fa-truck" aria-hidden="true"/> Propagar proveedores</button>
+                                    <button type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="newPartida"><i class="fa fa-plus" aria-hidden="true"/> Renglón manual</button>
+                                </div>
+                            </div>
+
+                            <LpEmpty t-if="!partidas.length" compact="true" icon="'fa-list-ol'" title="'Sin renglones'" text="'Los renglones llegan con la carga de detalle del procedimiento.'" actionLabel="'Nueva carga'" onAction="() => this.lp.goCarga()"/>
+                            <LpEmpty t-elif="!filteredPartidas.length" compact="true" icon="'fa-filter'" title="'Ningún renglón coincide con el filtro'"/>
+                            <div t-else="" class="lp-table-wrap">
+                                <table class="lp-table lp-table--partidas">
+                                    <thead>
+                                        <tr>
+                                            <th t-if="editable" class="lp-table__check"><input type="checkbox" t-att-checked="filteredPartidas.length and filteredPartidas.every((p) => state.selected[p.id])" t-on-change="toggleAll" aria-label="Seleccionar todos"/></th>
+                                            <th class="lp-table__num">#</th>
+                                            <th>Renglón</th>
+                                            <th class="lp-table__qty">Cantidad</th>
+                                            <th>Empresas</th>
+                                            <th>Proveedores</th>
+                                            <th class="lp-table__state">Participación</th>
+                                            <th class="lp-table__act"><span class="sr-only">Acciones</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="filteredPartidas" t-as="p" t-key="p.id" t-att-class="{'lp-table__row--selected': state.selected[p.id], 'lp-table__row--muted': !p.sigue_apareciendo}">
+                                            <td t-if="editable" class="lp-table__check"><input type="checkbox" t-att-checked="state.selected[p.id]" t-on-change="() => this.toggleSelect(p)" t-att-aria-label="'Seleccionar renglón ' + p.numero"/></td>
+                                            <td class="lp-table__num" t-att-data-label="'#'" t-esc="p.numero"/>
+                                            <td data-label="Renglón">
+                                                <div class="lp-partida__keys"><span class="lp-mono" t-esc="p.partida_especifica"/> <span class="lp-mono lp-mono--muted" t-esc="p.clave_cucop"/></div>
+                                                <div class="lp-partida__desc" t-att-title="p.descripcion_detallada" t-esc="p.descripcion_detallada"/>
+                                                <small t-if="p.descripcion_cucop" class="lp-muted" t-esc="p.descripcion_cucop"/>
+                                                <span t-if="!p.sigue_apareciendo" class="lp-badge lp-badge--xs lp-tone--muted"><i class="fa fa-eye-slash" aria-hidden="true"/> Ya no aparece</span>
+                                            </td>
+                                            <td class="lp-table__qty" data-label="Cantidad">
+                                                <span t-if="p.cantidad_pendiente" class="lp-badge lp-badge--xs lp-tone--warn" title="Detalle de servicios sin cantidad: pendiente de validación del cliente">Pendiente</span>
+                                                <span t-else="" t-esc="cantidadLabel(p)"/>
+                                            </td>
+                                            <td data-label="Empresas">
+                                                <div class="lp-chips">
+                                                    <span t-foreach="companyChips(p)" t-as="c" t-key="c.id" class="lp-tag" t-att-class="{'lp-tag--principal': c.principal}" t-att-title="c.principal ? 'Principal' : 'Secundaria'"><i t-if="c.principal" class="fa fa-star" aria-hidden="true"/> <t t-esc="c.name"/></span>
+                                                    <span t-if="!p.company_ids.length" class="lp-tag lp-tag--empty">Sin empresa</span>
+                                                </div>
+                                            </td>
+                                            <td data-label="Proveedores">
+                                                <div class="lp-chips">
+                                                    <span t-foreach="p.proveedores" t-as="prov" t-key="prov.id" class="lp-tag lp-tag--prov" t-esc="prov.name"/>
+                                                    <span t-if="!p.proveedores.length" class="lp-tag lp-tag--empty">Sin proveedor</span>
+                                                </div>
+                                            </td>
+                                            <td class="lp-table__state" data-label="Participación">
+                                                <span class="lp-badge" t-attf-class="lp-tone--{{partMeta[p.participacion].tone}}"><i t-attf-class="fa {{partMeta[p.participacion].icon}}" aria-hidden="true"/> <t t-esc="label(MODELS.partida, 'participacion', p.participacion)"/></span>
+                                                <small t-if="name(p.motivo_descarte_id)" class="lp-muted d-block" t-esc="name(p.motivo_descarte_id)"/>
+                                            </td>
+                                            <td class="lp-table__act">
+                                                <button type="button" class="lp-btn lp-btn--sm" t-att-class="{'lp-btn--outline': editable, 'lp-btn--ghost': !editable}" t-on-click="() => this.editPartida(p)"><i t-attf-class="fa {{editable ? 'fa-pencil' : 'fa-eye'}}" aria-hidden="true"/> <t t-esc="editable ? 'Asignar' : 'Ver'"/></button>
+                                                <button t-if="editable and p.participacion === 'descartada'" type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="() => this.reabrirPartida(p)" title="Quita el motivo de descarte del renglón"><i class="fa fa-undo" aria-hidden="true"/></button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="lp-hint"><i class="fa fa-info-circle" aria-hidden="true"/> «Asignar» abre el renglón: agrega empresas (la primera es la principal, arrastra para reordenar) y proveedores con autocompletado. Los datos del portal solo cambian con una nueva carga.</p>
+                        </section>
+
+                        <!-- expedientes -->
+                        <section t-if="state.tab === 'expedientes'" class="lp-card" aria-label="Expedientes">
+                            <t t-if="!expedientes.length">
+                                <LpEmpty t-if="['analisis','preguntas'].includes(rec.state)" compact="true" icon="'fa-folder-o'" title="'Todavía no hay expedientes'" text="'Cuando los renglones tengan empresa y proveedor, genera un expediente por empresa.'" actionLabel="'Generar expedientes'" onAction="() => this.generar()"/>
+                                <LpEmpty t-else="" compact="true" icon="'fa-folder-o'" title="'Todavía no hay expedientes'" text="'Los expedientes se generan desde En análisis o En preguntas.'"/>
+                            </t>
+                            <div t-else="" class="lp-exp-grid">
+                                <article t-foreach="expedientes" t-as="exp" t-key="exp.id" class="lp-exp" t-attf-class="lp-exp--{{expMeta[exp.state].tone}}">
+                                    <button type="button" class="lp-exp__main" t-on-click="() => this.openExpediente(exp)">
+                                        <div class="lp-exp__top">
+                                            <span class="lp-exp__company" t-esc="name(exp.company_id)"/>
+                                            <span class="lp-badge" t-attf-class="lp-tone--{{expMeta[exp.state].tone}}" t-esc="label(MODELS.exp, 'state', exp.state)"/>
+                                        </div>
+                                        <span class="lp-exp__folio" t-esc="exp.folio"/>
+                                        <div class="lp-exp__facts">
+                                            <span><b t-esc="exp.partidas_count"/> renglones</span>
+                                            <span><b t-esc="exp.proveedores_count"/> proveedores</span>
+                                            <span><b t-esc="exp.preguntas_count"/> preguntas</span>
+                                        </div>
+                                        <div class="lp-exp__money" t-if="exp.total_precio or exp.total_costo">
+                                            <span>Costo <b t-esc="money(exp.total_costo, currency(exp))"/></span>
+                                            <span>Precio <b t-esc="money(exp.total_precio, currency(exp))"/></span>
+                                            <span>Margen <b t-esc="pct(exp.margen_pct)"/></span>
+                                        </div>
+                                        <ul t-if="expedienteBloqueantes(exp).length" class="lp-exp__block">
+                                            <li t-foreach="expedienteBloqueantes(exp)" t-as="b" t-key="b_index"><i class="fa fa-exclamation-circle" aria-hidden="true"/> <t t-esc="b"/></li>
+                                        </ul>
+                                        <span t-else="" class="lp-exp__ok"><i class="fa fa-check" aria-hidden="true"/> Sin bloqueantes pendientes</span>
+                                    </button>
+                                </article>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- lateral -->
+                    <aside class="lp-stack">
+                        <section class="lp-card" aria-label="Fechas fatales">
+                            <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-calendar" aria-hidden="true"/> Fechas fatales</h2></div>
+                            <ol class="lp-timeline">
+                                <li t-foreach="timeline" t-as="f" t-key="f.field" class="lp-timeline__item" t-attf-class="lp-tone--{{f.tone}}">
+                                    <span class="lp-timeline__dot"><i t-attf-class="fa {{f.icon}}" aria-hidden="true"/></span>
+                                    <span class="lp-timeline__body">
+                                        <span class="lp-timeline__label" t-esc="f.label"/>
+                                        <span class="lp-timeline__when"><t t-if="f.value"><t t-esc="f.when"/> · <t t-esc="f.rel"/></t><t t-else="">Sin fecha</t></span>
+                                        <span t-if="f.field === 'fecha_fallo' and rec.fallo_diferido" class="lp-badge lp-badge--xs lp-tone--warn">Diferido · original <t t-esc="fmtDateTime(rec.fecha_fallo_original)"/></span>
+                                    </span>
+                                </li>
+                            </ol>
+                            <span class="lp-badge" t-attf-class="lp-tone--{{juntaMeta[rec.junta_class].tone}}"><i t-attf-class="fa {{juntaMeta[rec.junta_class].icon}}" aria-hidden="true"/> Semáforo de junta: <t t-esc="label(MODELS.proc, 'junta_class', rec.junta_class)"/></span>
+                        </section>
+
+                        <section class="lp-card" aria-label="Incidencias">
+                            <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-exclamation-circle" aria-hidden="true"/> Incidencias abiertas <b class="lp-count" t-esc="incidencias.length"/></h2></div>
+                            <LpEmpty t-if="!incidencias.length" compact="true" icon="'fa-check'" title="'Sin incidencias abiertas'"/>
+                            <ul t-else="" class="lp-rows lp-rows--tight">
+                                <li t-foreach="incidencias" t-as="row" t-key="row.id" class="lp-row lp-row--block">
+                                    <div class="lp-row__main">
+                                        <span class="lp-row__title"><span class="lp-badge lp-badge--xs" t-attf-class="lp-tone--{{row.severidad === 'bloqueante' ? 'danger' : 'warn'}}" t-esc="label(MODELS.incidencia, 'severidad', row.severidad)"/> <t t-esc="row.campo"/></span>
+                                        <span class="lp-row__meta"><t t-esc="label(MODELS.incidencia, 'origen', row.origen)"/> · actual: <t t-esc="row.valor_esperado || '—'"/> · encontrado: <t t-esc="row.valor_encontrado || '—'"/></span>
+                                    </div>
+                                    <div class="lp-row__actions">
+                                        <button type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-on-click="() => this.resolverIncidencia(row, 'action_resolver')"><i class="fa fa-check" aria-hidden="true"/> Resolver</button>
+                                        <button type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="() => this.resolverIncidencia(row, 'action_ignorar')">Ignorar</button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </section>
+
+                        <section class="lp-card" aria-label="Equipo">
+                            <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-users" aria-hidden="true"/> Responsable y empresas</h2></div>
+                            <div class="lp-person"><LpAvatar name="name(rec.user_id)"/><div><strong t-esc="name(rec.user_id)"/><small>Responsable del procedimiento</small></div></div>
+                            <div class="lp-chips lp-chips--wrap">
+                                <span t-foreach="rec.company_ids" t-as="cid" t-key="cid" class="lp-tag" t-esc="companies[cid] || ('#' + cid)"/>
+                                <span t-if="!rec.company_ids.length" class="lp-tag lp-tag--empty">Ninguna empresa asignada todavía</span>
+                            </div>
+                            <p class="lp-hint">Las empresas participantes se derivan de los renglones. El responsable se cambia en la ficha completa.</p>
+                        </section>
+                    </aside>
+                </div>
+            </div>
+        </t>
+    </div>
+</t>
+
+</templates>

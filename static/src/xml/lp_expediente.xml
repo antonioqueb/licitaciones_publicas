@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.Expediente">
+    <div class="lp-page">
+        <div t-if="state.loading and !state.data" class="lp-loading"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando el expediente…</div>
+        <LpEmpty t-elif="!state.data" icon="'fa-folder-o'" title="'Expediente no disponible'" text="'No existe o pertenece a una empresa que no tienes activa.'" actionLabel="'Ir a expedientes'" onAction="() => this.lp.goExpedientes()"/>
+        <t t-else="">
+            <LpHeader current="'expedientes'" tone="meta[rec.state].tone" eyebrow="'Expediente · ' + name(rec.company_id)" title="rec.folio"
+                      subtitle="name(rec.procedimiento_id) + (proc ? ' · ' + proc.nombre_publicado : '')">
+                <t t-set-slot="actions">
+                    <button type="button" class="lp-btn lp-btn--ghost" t-on-click="openFicha" title="Formulario completo con chatter"><i class="fa fa-file-text-o" aria-hidden="true"/> Ficha completa</button>
+                    <button type="button" class="lp-btn lp-btn--outline" t-on-click="() => this.report('report_expediente')"><i class="fa fa-file-pdf-o" aria-hidden="true"/> PDF</button>
+                    <button t-if="primaryAction" type="button" class="lp-btn lp-btn--primary" t-att-disabled="primaryAction.disabled" t-on-click="primaryAction.run"
+                            t-att-title="primaryAction.disabled ? 'Resuelve los bloqueantes pendientes' : false"><i t-attf-class="fa {{primaryAction.icon}}" aria-hidden="true"/> <t t-esc="primaryAction.label"/></button>
+                </t>
+            </LpHeader>
+
+            <div class="lp-page__body" t-att-aria-busy="state.loading ? 'true' : 'false'">
+                <section class="lp-card lp-card--flush" aria-label="Etapas del expediente">
+                    <LpStepper steps="steps" current="rec.state" reached="currentIndex" compact="true"/>
+                </section>
+
+                <section class="lp-now" t-attf-class="lp-now--{{meta[rec.state].tone}}" aria-label="Qué toca ahora">
+                    <div class="lp-now__head">
+                        <span class="lp-now__eyebrow">Ahora toca</span>
+                        <h2 class="lp-now__title"><i t-attf-class="fa {{meta[rec.state].icon}}" aria-hidden="true"/> <t t-esc="label(MODELS.exp, 'state', rec.state)"/></h2>
+                        <p class="lp-now__hint" t-esc="meta[rec.state].hint"/>
+                    </div>
+                    <ul class="lp-check">
+                        <li t-foreach="checklist" t-as="item" t-key="item_index" class="lp-check__item" t-att-class="{'lp-check__item--done': item.done}">
+                            <span class="lp-check__mark"><i t-attf-class="fa {{item.done ? 'fa-check' : 'fa-circle-o'}}" aria-hidden="true"/></span>
+                            <span class="lp-check__text"><t t-esc="item.text"/><small t-if="item.hint and !item.done" t-esc="item.hint"/></span>
+                        </li>
+                    </ul>
+                    <div class="lp-now__actions" t-if="primaryAction">
+                        <button type="button" class="lp-btn lp-btn--primary" t-att-disabled="primaryAction.disabled" t-on-click="primaryAction.run"><i t-attf-class="fa {{primaryAction.icon}}" aria-hidden="true"/> <t t-esc="primaryAction.label"/></button>
+                    </div>
+                </section>
+
+                <div class="lp-grid lp-grid--detail">
+                    <div class="lp-stack">
+                        <div class="lp-subtabs" role="tablist">
+                            <button type="button" class="lp-subtabs__tab" role="tab" t-att-class="{'lp-subtabs__tab--active': state.tab === 'preguntas'}" t-on-click="() => this.setTab('preguntas')"><i class="fa fa-question-circle-o" aria-hidden="true"/> Preguntas <b class="lp-count" t-esc="preguntas.length"/></button>
+                            <button type="button" class="lp-subtabs__tab" role="tab" t-att-class="{'lp-subtabs__tab--active': state.tab === 'costeo'}" t-on-click="() => this.setTab('costeo')"><i class="fa fa-calculator" aria-hidden="true"/> Costeo <b class="lp-count"><t t-esc="costeadas"/>/<t t-esc="partidas.length"/></b></button>
+                            <button type="button" class="lp-subtabs__tab" role="tab" t-att-class="{'lp-subtabs__tab--active': state.tab === 'documentos'}" t-on-click="() => this.setTab('documentos')"><i class="fa fa-file-o" aria-hidden="true"/> Documentos <b class="lp-count" t-esc="documentos.length"/></button>
+                            <button type="button" class="lp-subtabs__tab" role="tab" t-att-class="{'lp-subtabs__tab--active': state.tab === 'cartas'}" t-on-click="() => this.setTab('cartas')"><i class="fa fa-envelope-o" aria-hidden="true"/> Cartas <b class="lp-count" t-esc="cartas.length"/></button>
+                        </div>
+
+                        <!-- preguntas -->
+                        <section t-if="state.tab === 'preguntas'" class="lp-card" aria-label="Preguntas">
+                            <div class="lp-card__head">
+                                <h2 class="lp-card__title">Preguntas para la junta de aclaraciones</h2>
+                                <div class="lp-card__actions">
+                                    <button type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="() => this.report('report_preguntas_junta')"><i class="fa fa-file-pdf-o" aria-hidden="true"/> PDF de listas</button>
+                                    <button t-if="editable" type="button" class="lp-btn lp-btn--sm lp-btn--primary" t-on-click="newPregunta"><i class="fa fa-plus" aria-hidden="true"/> Nueva pregunta</button>
+                                </div>
+                            </div>
+                            <p t-if="proc and proc.fecha_limite_preguntas" class="lp-hint" t-attf-class="lp-tone--{{dateTone(proc.fecha_limite_preguntas)}}"><i class="fa fa-clock-o" aria-hidden="true"/> Límite de preguntas: <t t-esc="fmtDateTime(proc.fecha_limite_preguntas)"/> (<t t-esc="relative(proc.fecha_limite_preguntas)"/>)</p>
+                            <LpEmpty t-if="!preguntas.length" compact="true" icon="'fa-question-circle-o'" title="'Sin preguntas capturadas'" text="'Cada pregunta puede referirse a un renglón y pasa por revisión legal antes de enviarse.'"/>
+                            <ol t-else="" class="lp-qa">
+                                <li t-foreach="preguntas" t-as="q" t-key="q.id" class="lp-qa__item">
+                                    <button type="button" class="lp-qa__main" t-on-click="() => this.editPregunta(q)">
+                                        <span class="lp-qa__text" t-esc="q.texto"/>
+                                        <span class="lp-qa__meta"><t t-if="name(q.partida_id)">Renglón <t t-esc="name(q.partida_id)"/> · </t><t t-esc="name(q.autor_id)"/> · <t t-esc="fmtDateTime(q.fecha)"/></span>
+                                        <span t-if="q.respuesta_portal" class="lp-qa__answer"><i class="fa fa-reply" aria-hidden="true"/> <t t-esc="q.respuesta_portal"/></span>
+                                    </button>
+                                    <span class="lp-badge" t-attf-class="lp-tone--{{pregMeta[q.state].tone}}" t-esc="label(MODELS.pregunta, 'state', q.state)"/>
+                                </li>
+                            </ol>
+                        </section>
+
+                        <!-- costeo -->
+                        <section t-if="state.tab === 'costeo'" class="lp-card" aria-label="Costeo">
+                            <div class="lp-card__head">
+                                <h2 class="lp-card__title">Costeo por renglón</h2>
+                                <div class="lp-card__actions">
+                                    <button type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="() => this.report('action_report_costeo_xlsx')"><i class="fa fa-file-excel-o" aria-hidden="true"/> XLSX</button>
+                                    <button t-if="editable" type="button" class="lp-btn lp-btn--sm lp-btn--primary" t-on-click="() => this.newCosteo(null)"><i class="fa fa-plus" aria-hidden="true"/> Línea de costeo</button>
+                                </div>
+                            </div>
+                            <div class="lp-totals">
+                                <div class="lp-total"><span>Costo total</span><b t-esc="money(rec.total_costo, currency)"/></div>
+                                <div class="lp-total"><span>Precio total</span><b t-esc="money(rec.total_precio, currency)"/></div>
+                                <div class="lp-total" t-attf-class="lp-tone--{{rec.margen_bruto >= 0 ? 'ok' : 'danger'}}"><span>Margen bruto</span><b><t t-esc="money(rec.margen_bruto, currency)"/> · <t t-esc="pct(rec.margen_pct)"/></b></div>
+                            </div>
+                            <LpEmpty t-if="!partidas.length" compact="true" icon="'fa-list-ol'" title="'Esta empresa no tiene renglones asignados'"/>
+                            <div t-else="" class="lp-table-wrap">
+                                <table class="lp-table lp-table--costeo">
+                                    <thead><tr><th>Renglón</th><th>Proveedor</th><th class="lp-table__qty">Cantidad</th><th class="lp-table__money">Costo u.</th><th class="lp-table__money">Precio u.</th><th class="lp-table__money">Total precio</th><th class="lp-table__qty">Margen</th><th class="lp-table__act"><span class="sr-only">Acciones</span></th></tr></thead>
+                                    <tbody>
+                                        <tr t-foreach="partidas" t-as="p" t-key="p.id">
+                                            <t t-set="c" t-value="partidaCosteo(p)"/>
+                                            <td data-label="Renglón"><span class="lp-mono" t-esc="p.clave_cucop"/><div class="lp-partida__desc" t-esc="p.descripcion_detallada"/></td>
+                                            <td data-label="Proveedor" t-esc="c ? (name(c.proveedor_id) || '—') : '—'"/>
+                                            <td class="lp-table__qty" data-label="Cantidad"><span t-if="p.cantidad_pendiente" class="lp-badge lp-badge--xs lp-tone--warn">Pendiente</span><t t-else="" t-esc="number(p.cantidad, 2) + ' ' + (p.unidad_medida || '')"/></td>
+                                            <td class="lp-table__money" data-label="Costo u." t-esc="c ? money(c.costo_unitario, currency) : '—'"/>
+                                            <td class="lp-table__money" data-label="Precio u." t-esc="c ? money(c.precio_unitario, currency) : '—'"/>
+                                            <td class="lp-table__money" data-label="Total precio" t-esc="c ? money(c.total_precio, currency) : '—'"/>
+                                            <td class="lp-table__qty" data-label="Margen">
+                                                <t t-if="c"><t t-esc="pct(c.margen_pct)"/><small t-if="c.es_secundaria" class="lp-muted d-block">Secundaria · recargo <t t-esc="pct(c.recargo_secundaria_pct)"/></small></t>
+                                                <t t-else="">—</t>
+                                            </td>
+                                            <td class="lp-table__act">
+                                                <button t-if="c" type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-on-click="() => this.editCosteo(c)"><i t-attf-class="fa {{editable ? 'fa-pencil' : 'fa-eye'}}" aria-hidden="true"/> <t t-esc="editable ? 'Editar' : 'Ver'"/></button>
+                                                <button t-elif="editable and !p.cantidad_pendiente" type="button" class="lp-btn lp-btn--sm lp-btn--primary" t-on-click="() => this.newCosteo(p)"><i class="fa fa-plus" aria-hidden="true"/> Costear</button>
+                                                <span t-elif="p.cantidad_pendiente" class="lp-muted" title="Confirme la cantidad con una nueva carga antes de costear">Cantidad pendiente</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="lp-hint"><i class="fa fa-info-circle" aria-hidden="true"/> Margen = (precio − costo) / precio. Una empresa secundaria necesita el costeo previo de la principal y un recargo mayor a su margen.</p>
+                        </section>
+
+                        <!-- documentos -->
+                        <section t-if="state.tab === 'documentos'" class="lp-card" aria-label="Documentos">
+                            <div class="lp-card__head">
+                                <h2 class="lp-card__title">Documentos del expediente</h2>
+                                <div class="lp-card__actions">
+                                    <button type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="() => this.report('action_report_checklist_xlsx')"><i class="fa fa-file-excel-o" aria-hidden="true"/> Checklist XLSX</button>
+                                </div>
+                            </div>
+                            <t t-foreach="[['proveedor', 'De proveedores', docsProveedor], ['propio', 'Propios de la empresa', docsPropios]]" t-as="group" t-key="group[0]">
+                                <div class="lp-docgroup">
+                                    <div class="lp-docgroup__head">
+                                        <h3 class="lp-docgroup__title" t-esc="group[1]"/>
+                                        <span class="lp-docgroup__counts">
+                                            <span class="lp-badge lp-badge--xs lp-tone--ok"><t t-esc="docCounts(group[2]).recibido"/> recibidos</span>
+                                            <span class="lp-badge lp-badge--xs lp-tone--muted"><t t-esc="docCounts(group[2]).pendiente"/> pendientes</span>
+                                            <span t-if="docCounts(group[2]).vencido" class="lp-badge lp-badge--xs lp-tone--danger"><t t-esc="docCounts(group[2]).vencido"/> vencidos</span>
+                                        </span>
+                                        <button t-if="editable" type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-on-click="() => this.newDoc(group[0])"><i class="fa fa-plus" aria-hidden="true"/> Agregar</button>
+                                    </div>
+                                    <LpEmpty t-if="!group[2].length" compact="true" icon="'fa-file-o'" title="'Sin documentos registrados'"/>
+                                    <div t-else="" class="lp-docs">
+                                        <button t-foreach="group[2]" t-as="d" t-key="d.id" type="button" class="lp-doc" t-attf-class="lp-tone--{{docTone(d)}}" t-on-click="() => this.editDoc(d)">
+                                            <span class="lp-doc__icon"><i t-attf-class="fa {{docMeta[d.state].icon}}" aria-hidden="true"/></span>
+                                            <span class="lp-doc__body">
+                                                <span class="lp-doc__type"><t t-esc="label(MODELS.doc, 'tipo', d.tipo)"/> <i t-if="d.bloqueante" class="fa fa-exclamation-circle lp-doc__block" title="Bloqueante" aria-hidden="true"/></span>
+                                                <span class="lp-doc__meta">
+                                                    <t t-if="name(d.partner_id)"><t t-esc="name(d.partner_id)"/> · </t>
+                                                    <t t-if="name(d.partida_id)">renglón <t t-esc="name(d.partida_id)"/> · </t>
+                                                    <t t-if="d.fecha_vencimiento">vence <t t-esc="fmtDate(d.fecha_vencimiento)"/> · </t>
+                                                    <t t-if="d.archivo_nombre"><i class="fa fa-paperclip" aria-hidden="true"/> <t t-esc="d.archivo_nombre"/></t>
+                                                    <t t-else="">sin archivo</t>
+                                                </span>
+                                            </span>
+                                            <span class="lp-badge" t-attf-class="lp-tone--{{docTone(d)}}" t-esc="label(MODELS.doc, 'state', d.state)"/>
+                                        </button>
+                                    </div>
+                                </div>
+                            </t>
+                            <p class="lp-hint"><i class="fa fa-info-circle" aria-hidden="true"/> Un documento bloqueante debe estar Recibido y vigente para marcar el expediente listo. Las fianzas solo se aceptan en PDF. Cada archivo sustituido conserva su versión anterior.</p>
+                        </section>
+
+                        <!-- cartas -->
+                        <section t-if="state.tab === 'cartas'" class="lp-card" aria-label="Cartas de apoyo">
+                            <div class="lp-card__head">
+                                <h2 class="lp-card__title">Cartas de solicitud de apoyo</h2>
+                                <div class="lp-card__actions">
+                                    <button t-if="cartas.length" type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="cartasZip"><i class="fa fa-file-archive-o" aria-hidden="true"/> Todas en ZIP</button>
+                                </div>
+                            </div>
+                            <LpEmpty t-if="!cartas.length" compact="true" icon="'fa-envelope-o'" title="'Sin cartas de apoyo'" text="'Se crean al generar expedientes: una por proveedor asignado a los renglones de esta empresa.'"/>
+                            <ul t-else="" class="lp-rows">
+                                <li t-foreach="cartas" t-as="c" t-key="c.id" class="lp-row lp-row--block">
+                                    <button type="button" class="lp-row__main" t-on-click="() => this.editCarta(c)">
+                                        <span class="lp-row__id" t-esc="c.folio"/>
+                                        <span class="lp-row__title" t-esc="name(c.partner_id)"/>
+                                        <span class="lp-row__meta"><t t-esc="c.partida_ids.length"/> renglón(es) apoyado(s)<t t-if="c.fecha_envio"> · enviada <t t-esc="fmtDateTime(c.fecha_envio)"/></t><t t-if="c.fecha_respuesta"> · respondida <t t-esc="fmtDateTime(c.fecha_respuesta)"/></t></span>
+                                    </button>
+                                    <span class="lp-badge" t-attf-class="lp-tone--{{cartaMeta[c.state].tone}}" t-esc="label(MODELS.carta, 'state', c.state)"/>
+                                    <div class="lp-row__actions">
+                                        <button type="button" class="lp-btn lp-btn--sm lp-btn--ghost" t-on-click="() => this.cartaPdf(c)"><i class="fa fa-file-pdf-o" aria-hidden="true"/> PDF</button>
+                                        <button t-if="c.state === 'borrador'" type="button" class="lp-btn lp-btn--sm lp-btn--primary" t-on-click="() => this.cartaEnviar(c)"><i class="fa fa-paper-plane-o" aria-hidden="true"/> Enviar</button>
+                                        <button t-if="c.state === 'enviada'" type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-on-click="() => this.cartaRespondida(c)"><i class="fa fa-reply" aria-hidden="true"/> Registrar respuesta</button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </section>
+                    </div>
+
+                    <aside class="lp-stack">
+                        <section class="lp-card" aria-label="Procedimiento">
+                            <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-list-ol" aria-hidden="true"/> Procedimiento</h2></div>
+                            <button type="button" class="lp-row__main lp-row__main--card" t-on-click="openProc">
+                                <span class="lp-row__id" t-esc="name(rec.procedimiento_id)"/>
+                                <span t-if="proc" class="lp-row__title" t-esc="proc.nombre_publicado"/>
+                                <span t-if="proc" class="lp-row__meta" t-esc="name(proc.unidad_compradora_id)"/>
+                            </button>
+                            <ul t-if="proc" class="lp-minidates">
+                                <li t-if="proc.fecha_limite_preguntas" t-attf-class="lp-tone--{{dateTone(proc.fecha_limite_preguntas)}}"><i class="fa fa-question" aria-hidden="true"/> Límite de preguntas <b t-esc="fmtDateTime(proc.fecha_limite_preguntas)"/></li>
+                                <li t-if="proc.fecha_junta_aclaraciones" t-attf-class="lp-tone--{{dateTone(proc.fecha_junta_aclaraciones)}}"><i class="fa fa-users" aria-hidden="true"/> Junta <b t-esc="fmtDateTime(proc.fecha_junta_aclaraciones)"/></li>
+                                <li t-if="proc.fecha_apertura" t-attf-class="lp-tone--{{dateTone(proc.fecha_apertura)}}"><i class="fa fa-envelope-open-o" aria-hidden="true"/> Apertura <b t-esc="fmtDateTime(proc.fecha_apertura)"/></li>
+                            </ul>
+                        </section>
+
+                        <section class="lp-card" aria-label="Resumen">
+                            <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-pie-chart" aria-hidden="true"/> Resumen</h2></div>
+                            <dl class="lp-facts lp-facts--compact">
+                                <div><dt>Empresa</dt><dd t-esc="name(rec.company_id)"/></div>
+                                <div><dt>Renglones</dt><dd t-esc="rec.partidas_count"/></div>
+                                <div><dt>Proveedores</dt><dd t-esc="rec.proveedores_count"/></div>
+                                <div><dt>Preguntas</dt><dd t-esc="rec.preguntas_count"/></div>
+                                <div><dt>Precio total</dt><dd t-esc="money(rec.total_precio, currency)"/></div>
+                                <div><dt>Margen</dt><dd t-esc="pct(rec.margen_pct)"/></div>
+                            </dl>
+                        </section>
+
+                        <section class="lp-card" aria-label="Descargas">
+                            <div class="lp-card__head"><h2 class="lp-card__title"><i class="fa fa-download" aria-hidden="true"/> Descargas</h2></div>
+                            <div class="lp-stack lp-stack--tight">
+                                <button type="button" class="lp-btn lp-btn--outline lp-btn--block" t-on-click="() => this.report('report_expediente')"><i class="fa fa-file-pdf-o" aria-hidden="true"/> Expediente en PDF</button>
+                                <button type="button" class="lp-btn lp-btn--outline lp-btn--block" t-on-click="() => this.report('report_preguntas_junta')"><i class="fa fa-file-pdf-o" aria-hidden="true"/> Preguntas listas en PDF</button>
+                                <button type="button" class="lp-btn lp-btn--outline lp-btn--block" t-on-click="() => this.report('action_report_costeo_xlsx')"><i class="fa fa-file-excel-o" aria-hidden="true"/> Costeo en XLSX</button>
+                                <button type="button" class="lp-btn lp-btn--outline lp-btn--block" t-on-click="() => this.report('action_report_checklist_xlsx')"><i class="fa fa-file-excel-o" aria-hidden="true"/> Checklist en XLSX</button>
+                                <button t-if="cartas.length" type="button" class="lp-btn lp-btn--outline lp-btn--block" t-on-click="cartasZip"><i class="fa fa-file-archive-o" aria-hidden="true"/> Cartas en ZIP</button>
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </div>
+        </t>
+    </div>
+</t>
+
+</templates>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.Expedientes">
+    <div class="lp-page">
+        <LpHeader current="'expedientes'" eyebrow="'Licitaciones'" title="'Expedientes'"
+                  subtitle="'Un expediente por empresa y procedimiento: preguntas, costeo, documentos y cartas de apoyo.'">
+            <t t-set-slot="actions">
+                <button type="button" class="lp-btn lp-btn--ghost" t-on-click="openClassic"><i class="fa fa-table" aria-hidden="true"/> Vista clásica</button>
+            </t>
+        </LpHeader>
+
+        <div class="lp-page__body">
+            <div class="lp-filterbar" role="tablist" aria-label="Etapa del expediente">
+                <button type="button" class="lp-chip" t-att-class="{'lp-chip--active': state.stateKey === ''}" role="tab" t-on-click="() => this.setState('')">Todos <b t-esc="count('')"/></button>
+                <t t-foreach="flow" t-as="key" t-key="key">
+                    <button type="button" class="lp-chip" t-attf-class="lp-chip--{{meta[key].tone}}" t-att-class="{'lp-chip--active': state.stateKey === key}" role="tab" t-on-click="() => this.setState(key)">
+                        <i t-attf-class="fa {{meta[key].icon}}" aria-hidden="true"/> <t t-esc="label(MODELS.exp, 'state', key)"/> <b t-esc="count(key)"/>
+                    </button>
+                </t>
+            </div>
+            <div class="lp-toolbar">
+                <label class="lp-search"><i class="fa fa-search" aria-hidden="true"/><input type="search" class="lp-input" placeholder="Buscar por folio o procedimiento…" t-att-value="state.query" t-on-input="onQuery" aria-label="Buscar expedientes"/></label>
+            </div>
+
+            <div t-if="state.loading and !state.records.length" class="lp-loading"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Buscando expedientes…</div>
+            <LpEmpty t-elif="!state.records.length" icon="'fa-folder-o'" title="'Sin expedientes'" text="'Los expedientes se generan desde un procedimiento En análisis con empresas y proveedores asignados.'" actionLabel="'Ir a procedimientos'" onAction="() => this.lp.goProcedimientos()"/>
+            <div t-else="" class="lp-exp-grid" t-att-class="{'lp-cards--busy': state.loading}">
+                <article t-foreach="state.records" t-as="row" t-key="row.id" class="lp-exp" t-attf-class="lp-exp--{{meta[row.state].tone}}">
+                    <button type="button" class="lp-exp__main" t-on-click="() => this.open(row)">
+                        <div class="lp-exp__top">
+                            <span class="lp-exp__company" t-esc="name(row.company_id)"/>
+                            <span class="lp-badge" t-attf-class="lp-tone--{{meta[row.state].tone}}" t-esc="label(MODELS.exp, 'state', row.state)"/>
+                        </div>
+                        <span class="lp-exp__folio" t-esc="row.folio"/>
+                        <span class="lp-exp__proc" t-esc="name(row.procedimiento_id)"/>
+                        <div class="lp-exp__facts">
+                            <span><b t-esc="row.partidas_count"/> renglones</span>
+                            <span><b t-esc="row.proveedores_count"/> proveedores</span>
+                            <span><b t-esc="row.preguntas_count"/> preguntas</span>
+                        </div>
+                        <div class="lp-exp__money" t-if="row.total_precio or row.total_costo">
+                            <span>Precio <b t-esc="money(row.total_precio, currency(row))"/></span>
+                            <span>Margen <b t-esc="pct(row.margen_pct)"/></span>
+                        </div>
+                        <ul t-if="bloqueantes(row).length" class="lp-exp__block">
+                            <li t-foreach="bloqueantes(row)" t-as="b" t-key="b_index"><i class="fa fa-exclamation-circle" aria-hidden="true"/> <t t-esc="b"/></li>
+                        </ul>
+                        <span t-else="" class="lp-exp__ok"><i class="fa fa-check" aria-hidden="true"/> Sin bloqueantes pendientes</span>
+                        <span class="lp-exp__when">Actualizado <t t-esc="relative(row.write_date)"/></span>
+                    </button>
+                    <footer class="lp-exp__foot">
+                        <button type="button" class="lp-link" t-on-click="() => this.openProc(row)"><i class="fa fa-list-ol" aria-hidden="true"/> Ver procedimiento</button>
+                    </footer>
+                </article>
+            </div>
+
+            <div class="lp-pager" t-if="state.total > state.records.length or state.offset">
+                <span role="status" aria-live="polite">Mostrando <t t-esc="pageFrom"/>–<t t-esc="pageTo"/> de <t t-esc="state.total"/></span>
+                <div class="lp-pager__btns">
+                    <button type="button" class="lp-iconbtn" t-att-disabled="state.offset === 0 or state.loading" t-on-click="prev" aria-label="Página anterior"><i class="fa fa-angle-left" aria-hidden="true"/></button>
+                    <button type="button" class="lp-iconbtn" t-att-disabled="pageTo >= state.total or state.loading" t-on-click="next" aria-label="Página siguiente"><i class="fa fa-angle-right" aria-hidden="true"/></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

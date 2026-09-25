@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.Procedimientos">
+    <div class="lp-page">
+        <LpHeader current="'procedimientos'" eyebrow="'Licitaciones'" title="'Procedimientos'"
+                  subtitle="'Cada procedimiento avanza por etapas: criba, renglones, expedientes, costeo, propuesta y fallo.'">
+            <t t-set-slot="actions">
+                <button type="button" class="lp-btn lp-btn--ghost" t-on-click="openClassic" title="Lista y kanban nativos de Odoo"><i class="fa fa-table" aria-hidden="true"/> Vista clásica</button>
+                <button type="button" class="lp-btn lp-btn--primary" t-on-click="() => this.lp.goCarga()"><i class="fa fa-cloud-upload" aria-hidden="true"/> Nueva carga</button>
+            </t>
+        </LpHeader>
+
+        <div class="lp-page__body">
+            <!-- etapas -->
+            <div class="lp-filterbar" role="tablist" aria-label="Etapa">
+                <button type="button" class="lp-chip" t-att-class="{'lp-chip--active': state.stateKey === '__relevantes'}" role="tab" t-on-click="() => this.setState('__relevantes')">En curso <b t-esc="count('__relevantes')"/></button>
+                <t t-foreach="flow" t-as="key" t-key="key">
+                    <button type="button" class="lp-chip" t-attf-class="lp-chip--{{meta[key].tone}}" t-att-class="{'lp-chip--active': state.stateKey === key}" role="tab" t-on-click="() => this.setState(key)">
+                        <i t-attf-class="fa {{meta[key].icon}}" aria-hidden="true"/> <t t-esc="label(MODELS.proc, 'state', key)"/> <b t-esc="count(key)"/>
+                    </button>
+                </t>
+                <button type="button" class="lp-chip lp-chip--muted" t-att-class="{'lp-chip--active': state.stateKey === 'descartado'}" role="tab" t-on-click="() => this.setState('descartado')">Descartados <b t-esc="count('descartado')"/></button>
+                <button type="button" class="lp-chip lp-chip--danger" t-att-class="{'lp-chip--active': state.stateKey === 'no_viable'}" role="tab" t-on-click="() => this.setState('no_viable')">No viables <b t-esc="count('no_viable')"/></button>
+                <button type="button" class="lp-chip" t-att-class="{'lp-chip--active': state.stateKey === ''}" role="tab" t-on-click="() => this.setState('')">Todos <b t-esc="count('')"/></button>
+            </div>
+
+            <!-- búsqueda y filtros -->
+            <div class="lp-toolbar">
+                <label class="lp-search">
+                    <i class="fa fa-search" aria-hidden="true"/>
+                    <input type="search" class="lp-input" placeholder="Buscar por identificador, nombre o unidad compradora…" t-att-value="state.query" t-on-input="onQuery" aria-label="Buscar procedimientos"/>
+                </label>
+                <select class="lp-input lp-select" t-on-change="onEntidad" aria-label="Entidad federativa">
+                    <option value="0" t-att-selected="!state.entidad">Todas las entidades</option>
+                    <option t-foreach="state.entidades" t-as="e" t-key="e.id" t-att-value="e.id" t-att-selected="state.entidad === e.id" t-esc="e.name"/>
+                </select>
+                <div class="lp-toolbar__group" role="group" aria-label="Semáforo de junta">
+                    <button type="button" class="lp-chip lp-chip--warn" t-att-class="{'lp-chip--active': state.junta === 'urgente'}" t-on-click="() => this.setJunta('urgente')"><i class="fa fa-exclamation-triangle" aria-hidden="true"/> En 72 h</button>
+                    <button type="button" class="lp-chip lp-chip--danger" t-att-class="{'lp-chip--active': state.junta === 'vencida'}" t-on-click="() => this.setJunta('vencida')"><i class="fa fa-calendar-times-o" aria-hidden="true"/> Vencidas</button>
+                    <button type="button" class="lp-chip" t-att-class="{'lp-chip--active': state.mine}" t-on-click="() => this.toggle('mine')"><i class="fa fa-user-o" aria-hidden="true"/> Míos</button>
+                    <button type="button" class="lp-chip lp-chip--muted" t-att-class="{'lp-chip--active': state.ausentes}" t-on-click="() => this.toggle('ausentes')"><i class="fa fa-eye-slash" aria-hidden="true"/> Ya no aparecen</button>
+                </div>
+                <button t-if="hasFilters" type="button" class="lp-link" t-on-click="clear"><i class="fa fa-times" aria-hidden="true"/> Limpiar</button>
+                <div class="lp-toolbar__group lp-toolbar__layout" role="group" aria-label="Diseño">
+                    <button type="button" class="lp-iconbtn" t-att-class="{'lp-iconbtn--active': state.layout === 'cards'}" title="Tarjetas" t-on-click="() => this.state.layout = 'cards'"><i class="fa fa-th-large" aria-hidden="true"/></button>
+                    <button type="button" class="lp-iconbtn" t-att-class="{'lp-iconbtn--active': state.layout === 'rows'}" title="Filas" t-on-click="() => this.state.layout = 'rows'"><i class="fa fa-bars" aria-hidden="true"/></button>
+                </div>
+            </div>
+
+            <div t-if="state.loading and !state.records.length" class="lp-loading"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Buscando procedimientos…</div>
+            <LpEmpty t-elif="!state.records.length" icon="'fa-search'" title="'Sin procedimientos con estos filtros'" text="'Cambia la etapa o el texto de búsqueda. Los procedimientos nuevos llegan con cada carga confirmada del portal.'" actionLabel="'Nueva carga'" onAction="() => this.lp.goCarga()"/>
+
+            <div t-else="" class="lp-cards" t-att-class="{'lp-cards--rows': state.layout === 'rows', 'lp-cards--busy': state.loading}" t-att-aria-busy="state.loading ? 'true' : 'false'">
+                <article t-foreach="state.records" t-as="row" t-key="row.id" class="lp-proc" t-attf-class="lp-proc--{{meta[row.state].tone}}" t-att-class="{'lp-proc--gone': !row.sigue_apareciendo}">
+                    <button type="button" class="lp-proc__main" t-on-click="() => this.open(row)" t-att-aria-label="'Abrir ' + row.identificador">
+                        <div class="lp-proc__top">
+                            <span class="lp-proc__id" t-esc="row.identificador"/>
+                            <span class="lp-badge" t-attf-class="lp-tone--{{meta[row.state].tone}}"><i t-attf-class="fa {{meta[row.state].icon}}" aria-hidden="true"/> <t t-esc="label(MODELS.proc, 'state', row.state)"/></span>
+                        </div>
+                        <h3 class="lp-proc__name" t-esc="row.nombre_publicado"/>
+                        <div class="lp-proc__meta">
+                            <span t-if="name(row.unidad_compradora_id)"><i class="fa fa-building-o" aria-hidden="true"/> <t t-esc="name(row.unidad_compradora_id)"/></span>
+                            <span t-if="name(row.entidad_id)"><i class="fa fa-map-marker" aria-hidden="true"/> <t t-esc="name(row.entidad_id)"/></span>
+                            <span t-if="name(row.estatus_portal_id)"><i class="fa fa-globe" aria-hidden="true"/> <t t-esc="name(row.estatus_portal_id)"/></span>
+                            <span t-if="!row.sigue_apareciendo" class="lp-proc__gone"><i class="fa fa-eye-slash" aria-hidden="true"/> Ya no aparece en el portal</span>
+                        </div>
+                        <div class="lp-proc__facts">
+                            <span class="lp-fact" t-attf-class="lp-tone--{{juntaMeta[row.junta_class].tone}}" t-att-title="fmtDateTime(row.fecha_junta_aclaraciones)">
+                                <i t-attf-class="fa {{juntaMeta[row.junta_class].icon}}" aria-hidden="true"/>
+                                <t t-if="row.fecha_junta_aclaraciones">Junta <t t-esc="relative(row.fecha_junta_aclaraciones)"/></t>
+                                <t t-else="">Junta sin fecha</t>
+                            </span>
+                            <span class="lp-fact" t-if="row.fecha_apertura" t-att-title="fmtDateTime(row.fecha_apertura)"><i class="fa fa-envelope-open-o" aria-hidden="true"/> Apertura <t t-esc="relative(row.fecha_apertura)"/></span>
+                            <span class="lp-fact"><i class="fa fa-list-ol" aria-hidden="true"/> <t t-esc="row.renglones_con_empresa_count"/>/<t t-esc="row.renglones_count"/> renglones</span>
+                            <span class="lp-fact lp-tone--danger" t-if="row.incidencias_abiertas_count"><i class="fa fa-exclamation-circle" aria-hidden="true"/> <t t-esc="row.incidencias_abiertas_count"/> incidencia(s)</span>
+                        </div>
+                    </button>
+                    <footer class="lp-proc__foot">
+                        <div class="lp-proc__companies">
+                            <span t-foreach="companyNames(row.company_ids)" t-as="company" t-key="company_index" class="lp-tag" t-esc="company"/>
+                            <span t-if="!row.company_ids.length" class="lp-tag lp-tag--empty">Sin empresa asignada</span>
+                        </div>
+                        <div class="lp-proc__who">
+                            <LpAvatar name="name(row.user_id)" small="true"/>
+                            <button type="button" class="lp-btn lp-btn--sm lp-btn--outline" t-on-click="() => this.cribar(row)"><i class="fa fa-filter" aria-hidden="true"/> Cribar</button>
+                        </div>
+                    </footer>
+                </article>
+            </div>
+
+            <div class="lp-pager" t-if="state.total > state.records.length or state.offset">
+                <span role="status" aria-live="polite">Mostrando <t t-esc="pageFrom"/>–<t t-esc="pageTo"/> de <t t-esc="state.total"/></span>
+                <div class="lp-pager__btns">
+                    <button type="button" class="lp-iconbtn" t-att-disabled="state.offset === 0 or state.loading" t-on-click="prev" aria-label="Página anterior"><i class="fa fa-angle-left" aria-hidden="true"/></button>
+                    <button type="button" class="lp-iconbtn" t-att-disabled="pageTo >= state.total or state.loading" t-on-click="next" aria-label="Página siguiente"><i class="fa fa-angle-right" aria-hidden="true"/></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

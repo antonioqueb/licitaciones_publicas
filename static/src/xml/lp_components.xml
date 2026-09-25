@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="licitaciones_publicas.LpStepper">
+    <ol class="lp-stepper" t-att-class="{'lp-stepper--compact': props.compact}" role="list">
+        <t t-foreach="props.steps" t-as="step" t-key="step.key">
+            <li class="lp-stepper__step" t-attf-class="lp-stepper__step--{{status(step_index)}}"
+                t-att-aria-current="status(step_index) === 'current' ? 'step' : false"
+                t-att-role="props.onSelect ? 'button' : false" t-att-tabindex="props.onSelect and status(step_index) !== 'off' ? '0' : false"
+                t-on-click="() => this.select(step, step_index)"
+                t-on-keydown="(ev) => (ev.key === 'Enter' || ev.key === ' ') and this.select(step, step_index)">
+                <span class="lp-stepper__dot">
+                    <i t-if="status(step_index) === 'done'" class="fa fa-check" aria-hidden="true"/>
+                    <i t-elif="step.icon" t-attf-class="fa {{step.icon}}" aria-hidden="true"/>
+                    <t t-else="" t-esc="step_index + 1"/>
+                </span>
+                <span class="lp-stepper__text">
+                    <span class="lp-stepper__label" t-esc="step.label"/>
+                    <span t-if="step.hint and !props.compact" class="lp-stepper__hint" t-esc="step.hint"/>
+                </span>
+                <span t-if="!step_last" class="lp-stepper__line" aria-hidden="true"/>
+            </li>
+        </t>
+    </ol>
+</t>
+
+<t t-name="licitaciones_publicas.LpDropzone">
+    <div class="lp-dropzone" t-att-class="{'lp-dropzone--over': state.over, 'lp-dropzone--filled': props.file, 'lp-dropzone--busy': props.busy}"
+         t-on-dragover="onDragOver" t-on-dragleave="onDragLeave" t-on-drop="onDrop"
+         role="button" tabindex="0" t-on-click="open" t-on-keydown="(ev) => (ev.key === 'Enter' || ev.key === ' ') and this.open()"
+         aria-label="Seleccionar archivo">
+        <input type="file" class="lp-dropzone__input" t-ref="input" t-att-accept="props.accept" t-on-change="onChange" t-on-click.stop=""/>
+        <t t-if="props.file">
+            <span class="lp-dropzone__icon lp-dropzone__icon--ok"><i class="fa fa-file-excel-o" aria-hidden="true"/></span>
+            <span class="lp-dropzone__title" t-esc="props.file.name"/>
+            <span class="lp-dropzone__meta"><t t-esc="sizeLabel"/> · haz clic o arrastra otro archivo para reemplazarlo</span>
+            <button t-if="props.onClear" type="button" class="lp-btn lp-btn--ghost lp-btn--sm" t-on-click.stop="props.onClear"><i class="fa fa-times" aria-hidden="true"/> Quitar</button>
+        </t>
+        <t t-else="">
+            <span class="lp-dropzone__icon"><i class="fa fa-cloud-upload" aria-hidden="true"/></span>
+            <span class="lp-dropzone__title">Arrastra aquí el Excel del portal</span>
+            <span class="lp-dropzone__meta">o haz clic para buscarlo en tu equipo<t t-if="props.accept"> · <t t-esc="props.accept"/></t> · máximo 25 MB</span>
+        </t>
+        <span t-if="state.error" class="lp-dropzone__error" role="alert" t-esc="state.error"/>
+        <span t-if="props.busy" class="lp-dropzone__busy"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Analizando archivo…</span>
+    </div>
+</t>
+
+<t t-name="licitaciones_publicas.LpAvatar">
+    <span class="lp-avatar" t-attf-class="lp-avatar--{{props.tone || 'slate'}} {{props.small ? 'lp-avatar--sm' : ''}}" t-att-title="props.name" t-esc="initials"/>
+</t>
+
+<t t-name="licitaciones_publicas.LpKpi">
+    <t t-set="tag" t-value="props.onClick ? 'button' : 'div'"/>
+    <t t-tag="tag" class="lp-kpi" t-attf-class="lp-kpi--{{props.tone || 'slate'}} {{props.onClick ? 'lp-kpi--link' : ''}}"
+       t-att-type="props.onClick ? 'button' : false" t-on-click="() => props.onClick and props.onClick()">
+        <span t-if="props.icon" class="lp-kpi__icon"><i t-attf-class="fa {{props.icon}}" aria-hidden="true"/></span>
+        <span class="lp-kpi__value" t-esc="(props.value || props.value === 0) ? props.value : '—'"/>
+        <span class="lp-kpi__label" t-esc="props.label"/>
+        <span t-if="props.hint" class="lp-kpi__hint" t-esc="props.hint"/>
+    </t>
+</t>
+
+<t t-name="licitaciones_publicas.LpEmpty">
+    <div class="lp-empty" t-att-class="{'lp-empty--compact': props.compact}">
+        <span class="lp-empty__icon"><i t-attf-class="fa {{props.icon || 'fa-inbox'}}" aria-hidden="true"/></span>
+        <strong class="lp-empty__title" t-esc="props.title"/>
+        <p t-if="props.text" class="lp-empty__text" t-esc="props.text"/>
+        <button t-if="props.actionLabel and props.onAction" type="button" class="lp-btn lp-btn--primary" t-on-click="props.onAction" t-esc="props.actionLabel"/>
+    </div>
+</t>
+
+</templates>
